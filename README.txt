@@ -128,15 +128,15 @@ IndexRowset - these are simple keyed tables:
     invmetagroups                metaGroupID        
     invtypes                     typeID             
     invbptypes                   blueprintTypeID    
-	dgmattribs                   attributeID        
+    dgmattribs                   attributeID        
     dgmeffects                   effectID           
     evegraphics                  graphicID          
-	eveunits                     unitID             
-	eveowners                    ownerID            
-	evelocations                 locationID         
-	corptickernames              corporationID      
-	allianceshortnames           allianceID         
-	ramaltypes                   assemblyLineTypeID 
+    eveunits                     unitID             
+    eveowners                    ownerID            
+    evelocations                 locationID         
+    corptickernames              corporationID      
+    allianceshortnames           allianceID         
+    ramaltypes                   assemblyLineTypeID 
     ramactivities                activityID
     ramcompletedstatuses         completedStatusID
     mapcelestialdescriptions     celestialID

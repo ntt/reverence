@@ -222,7 +222,6 @@ class CacheMgr:
 			os.path.join(self.bulkdatapath, fileName),
 		]:
 			if os.path.exists(cacheName):
-				#print >>sys.stderr, cacheName, "=", this
 				blurb = open(cacheName, "rb").read()
 				_t = time.clock()
 				what, obj2 = blue.marshal.Load(blurb)

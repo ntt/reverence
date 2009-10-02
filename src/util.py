@@ -66,8 +66,7 @@ class Row:
 	def __getattr__(self, this):
 		try:
 			return self.line[self.header.index(this)]
-		except:
-			print this, id(self), self.__dict__
+		except ValueError:
 			raise AttributeError, this
 
 	def __getitem__(self, this):

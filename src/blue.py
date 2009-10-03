@@ -139,7 +139,7 @@ class EVE(object):
 
 	def RemoteSvc(self, service):
 		"""Creates a wrapper through which offline remote service methods can be called"""
-		return RemoteSvcWrap(self, service)
+		return _RemoteSvcWrap(self, service)
 
 	# --- custom additions ---
 

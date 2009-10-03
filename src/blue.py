@@ -125,8 +125,6 @@ class EVE(object):
 		self.rot = _Rot(self)
 		self.languageID = languageID
 
-		from . import infosvc
-
 		# default cache
 		self.cache = cache.CacheMgr(self.root, self.server, machoVersion, cachepath)
 		self.machoVersion = self.cache.machoVersion

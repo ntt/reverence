@@ -62,6 +62,19 @@ or erroneous data may compromise your system's security and/or stability.
 
 
 
+INSTALLATION
+============
+Windows users can download an installer here:
+http://github.com/ntt/reverence/
+
+Linux users:
+Download the source distribution from the same location as above, extract the
+contents of the archive, cd to the project directory and run the following:
+
+   python setup.py install
+
+
+
 USAGE
 =====
 Most of the stuff that matters has docstrings.

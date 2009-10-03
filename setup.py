@@ -25,6 +25,8 @@ functions and helpers for EVE-related applications.
 setup(
 	name = "reverence",
 
+	url = "http://github.com/ntt/reverence",
+
 	version = "1.0",
 
 	description = "Interface to EVE Online resources",

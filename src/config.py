@@ -565,11 +565,6 @@ class Config(object):
 		return self._loadfrombulk("dgmtypeattribs", self.defaults.dgmtypeattribs, "IndexedRowLists", "typeID")
 
 	@memoize
-	def attributes(self):
-		self._dgmtypeattribs_load()
-		return self.attributes
-
-	@memoize
 	def dgmtypeeffects(self):
 		return self._loadfrombulk("dgmtypeeffects", self.defaults.dgmtypeeffects, "IndexedRowLists", "typeID")
 

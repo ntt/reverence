@@ -84,7 +84,7 @@ class CacheMgr:
 				# per platform, windows version and locale.
 
 				if os.name == "nt":
-					cacheFolderName = root.lower().replace(":", "").replace("\\", "_")
+					cacheFolderName = root.lower().replace(":", "").replace("\\", "_").replace(" ", "_")
 					cacheFolderName += "_"+servername.lower()
 
 					from ctypes import wintypes, windll, c_int

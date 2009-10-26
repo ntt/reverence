@@ -76,6 +76,7 @@ void DEBUG(char *text)
 		sprintf((error = errortext), "Attempted store of NULL at shared position #%d", shared_map[shared_count]-1);\
 		goto fail;\
 	}\
+	Py_INCREF(_obj);\
 	shared_obj[shared_map[shared_count++]-1] = (_obj);\
 }
 
@@ -97,6 +98,7 @@ void DEBUG(char *text)
 // (only if it was a valid slot)
 #define UPDATE_SLOT(_ix, _obj)\
 	if(_ix) {\
+		Py_INCREF(_obj);\
 		shared_obj[_ix-1] = _obj;\
 	}
 
@@ -411,14 +413,20 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 			length = 0;
 
 
-/*		if(shared)
-		{
+//		if(shared)
+/*		{
 			char text[220];
-			sprintf(text, "pos:%d type:0x%02x shared:%d len:%d", s-stream, type, shared, length);
-			DEBUG(text);
+			int i;
+			for(i=0; i<ct_ix; i++)
+				printf("  ");
+
+			sprintf(text, "pos:%4d type:0x%02x shared:%d len:%4d map:[", s-stream, type, shared?1:0, length);
+			printf(text);
+			for(i=0; i<shared_mapsize; i++)
+				printf("%d(%d),", shared_obj[i], shared_obj[i] ? ((PyObject *)(shared_obj[i]))->ob_refcnt : 0);
+			printf("]\r\n");
 		}
 */
-
 
 		switch(type) {
 
@@ -455,7 +463,11 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 			if(!length)
 				obj = PyLong_FromLong(0);
 			else
+			{
 				obj = _PyLong_FromByteArray((unsigned char *)s, length, 1, 1);
+				Py_INCREF(obj);
+			}
+
 			CHECK_SHARED(obj);
 			s += length;
 			break;
@@ -628,6 +640,7 @@ tuple:
 			}
 
 			Py_INCREF(obj);
+			//printf("Getting object %d from %d (refs:%d)\r\n", (int)obj, length-1, obj->ob_refcnt);
 			break;
 
 		case TYPE_GLOBAL:
@@ -942,7 +955,7 @@ if(obj && obj->ob_refcnt < 0)
 	error = "Not enough objects in stream";
 
 fail:
-	PyErr_Format(PyExc_RuntimeError, "%s - type:0x%02x ctype:0x%02x len:%d share:%d pos:%d", error, type, container->type, (int)length, shared, (int)(s-stream));
+	PyErr_Format(PyExc_RuntimeError, "%s - type:0x%02x ctype:0x%02x len:%d share:%d pos:%d size:%d", error, type, container->type, (int)length, shared, (int)(s-stream), (int)(size));
 
 cleanup:
 	// on any error the current object we were working on will be unassociated
@@ -964,7 +977,15 @@ cleanup:
 	}
 
 	if(shared_obj)
+	{
+		/* shared object list held a safety ref to all objects, decref em */
+		int i;
+		for(i=0; i<shared_mapsize; i++)
+			Py_XDECREF(shared_obj[i]);
+
+		/* and free the list */
 		PyMem_FREE(shared_obj);
+	}
 	return result;
 }
 

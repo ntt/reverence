@@ -92,7 +92,7 @@ class CacheMgr:
 					path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
 					result = windll.shell32.SHGetFolderPathW(0, CSIDL_LOCAL_APPDATA, 0, 0, path_buf)
 					if result:
-						raise RuntimeError("SHGetFolderPath failed, error code 0x%08x")
+						raise RuntimeError("SHGetFolderPath failed, error code 0x%08x" % result)
 					cachepath = os.path.join(path_buf.value, "CCP", "EVE", cacheFolderName, "cache")
 
 				elif os.name == "mac":

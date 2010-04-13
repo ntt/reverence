@@ -95,11 +95,12 @@ class CacheMgr:
 						raise RuntimeError("SHGetFolderPath failed, error code 0x%08x" % result)
 					cachepath = os.path.join(path_buf.value, "CCP", "EVE", cacheFolderName, "cache")
 
-				elif os.name == "mac":
-					# untested. probably wrong.
-					home = os.path.expanduser('~')
-					cacheFolderName = "c_program_files_ccp_eve_" + servername.lower()
-					cachepath = os.path.join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName)
+				elif sys.platform == "darwin" or os.name == "mac":
+ 					# slightly less untested. might still be wrong.
+ 					home = os.path.expanduser('~')
+ 					cacheFolderName = "c_program_files_ccp_eve_" + servername.lower()
+					cachepath = os.path.join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
+					root = os.path.join(root, "Contents/Resources/transgaming/c_drive/Program Files/CCP/EVE")
 
 				elif os.name == "posix":
 					import pwd

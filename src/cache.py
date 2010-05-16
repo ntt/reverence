@@ -7,6 +7,7 @@ it under the terms of the BSD license (see the file LICENSE.txt
 included with the distribution).
 """
 
+import sys
 import os
 import glob
 import platform

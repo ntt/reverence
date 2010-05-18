@@ -3,6 +3,7 @@ import distutils
 from distutils.core import setup
 from distutils.core import Extension
 
+import platform
 import sys
 import os
 
@@ -11,8 +12,8 @@ try:
 except OSError:
     pass
 
-if sys.version_info < (2, 6) or sys.version_info > (2, 7):
-	raise RuntimeError("Python 2.6 required")
+if sys.version_info < (2, 5) or sys.version_info > (2, 7):
+	raise RuntimeError("Python 2.5 or 2.6 required")
 
 desc = """\
 Reverence is a decoder for, and interface to the bulkdata, cache and
@@ -35,6 +36,7 @@ setup(
 
 	classifiers = [
 		"License :: OSI Approved :: BSD License",
+		"Programming Language :: Python :: 2.5",
 		"Programming Language :: Python :: 2.6",
 		"Development Status :: 4 - Beta",
 		"Intended Audience :: Developers",

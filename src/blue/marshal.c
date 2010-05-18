@@ -520,7 +520,8 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 
 		case TYPE_STRING1:
 			CHECK_SIZE(1);
-			obj = PyString_FromStringAndSize(s++, length);
+			obj = PyString_FromStringAndSize(s, 1);
+			s++;
 			break;
 
 		case TYPE_STREAM:

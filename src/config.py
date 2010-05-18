@@ -730,13 +730,17 @@ class Config(object):
 					# if this is hint data, just add it to the specified table (dst)
 					rs = dst
 
+					if type(obj) != dbutil.CRowset:
+						# pre-Tyrannis (protocol 235) this was a Rowset, not a CRowset.
+						obj = obj.lines
+
 					# add the lines
-					rs.lines.extend(obj.lines)
+					rs.lines.extend(obj)
 
 					# fix index
 					ki = rs.key
 					i = rs.items
-					for line in obj.lines:
+					for line in obj:
 						i[line[ki]] = line
 				else:
 					if type(obj) == dbutil.CRowset:
@@ -769,7 +773,12 @@ class Config(object):
 						rs[key] = [row]
 	
 			elif typ == "IndexRowset":
-				rs = util.IndexRowset(obj[0], obj[1], key, RowClass=RowClass)
+				if type(obj) == dbutil.CRowset:
+					# Protocol 242 and up.
+					rs = util.IndexRowset(obj[0].__header__.Keys(), obj, key, RowClass=RowClass)
+				else:
+					# Protocol 235 and below.
+					rs = util.IndexRowset(obj[0], obj[1], key, RowClass=RowClass)
 
 			elif typ == "IndexedRowLists":
 				rs = util.IndexedRowLists(obj, (key,))

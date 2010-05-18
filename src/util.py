@@ -203,6 +203,8 @@ class FilterRowset:
 
 	RowClass = Row
 
+	cfg = None
+
 	def __init__(self,header=None, li=None, idName=None, RowClass=Row, idName2=None, dict=None, cfgInstance=None):
 		self.cfg = cfgInstance
 		items = {}

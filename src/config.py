@@ -344,7 +344,7 @@ class Schematic(util.Row):
 		value = _urga(self, name)
 #		if name == 'schematicName':
 #			value = self.cfg.Tr(value, 'planet.schematics.schematicName', self.dataID)
-		return Value
+		return value
 
 	def __str__(self):
 		return 'Schematic: %s (%d)' % (self.schematicName, self.schematicID)

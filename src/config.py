@@ -24,6 +24,8 @@ from . import const, util, dbutil
 
 _urga = util.Row.__getattr__
 
+_header_type = tuple if hasattr(tuple, "index") else list
+
 
 class RecordsetIterator(object):
 	def next(self):
@@ -88,6 +90,19 @@ class OwnerRecord(Record):
 
 	def __repr__(self):
 		return "<OwnerRecord %s: '%s'>" % (self.ownerID, self.ownerName)
+
+
+class Billtype(util.Row):
+	__guid__ = 'cfg.Billtype'
+
+	def __getattr__(self, name):
+		value = _urga(self, name)
+#		if name == 'billTypeName':
+#			value = Tr(value, 'dbo.actBillTypes.billTypeName', self.billTypeID)
+		return value
+
+	def __str__(self):
+		return 'Billtype ID: %d' % self.billTypeID
 
 
 class InvType(util.Row):
@@ -185,7 +200,10 @@ class DgmEffect(util.Row):
 class EveGraphics(util.Row):
 	def __getattr__(self, name):
 		if name == "name" or name == "description":
-			return self.icon
+			if "icon" in row.header:
+				# Pre-tyrannis.
+				return self.icon
+			return self.description
 		else:
 			return _urga(self, name)
 
@@ -320,15 +338,42 @@ class Certificate(util.Row):
 		return "Certificate ID: %d" % (self.certificateID)
 
 
+class Schematic(util.Row):
+	__guid__ = 'cfg.Schematic'
+
+	def __getattr__(self, name):
+		value = _urga(self, name)
+#		if name == 'schematicName':
+#			value = self.cfg.Tr(value, 'planet.schematics.schematicName', self.dataID)
+		return Value
+
+	def __str__(self):
+		return 'Schematic: %s (%d)' % (self.schematicName, self.schematicID)
+
+	def __cmp__(self, other):
+		if type(other) == types.IntType:
+			return types.IntType.__cmp__(self.schematicID, other)
+		else:
+			return util.Row.__cmp__(self, other)
+
+
 class Dud(object):
 	pass
 
 
-class memoize(object):
-	"""single-shot memoizing descriptor"""
+# Warning: Code below may accidentally your whole brain.
+
+class _memoize(object):
+	# This class is a getter. On attribute access, it will call the method it
+	# decorates and replace the attribute value (which is the getter instance)
+	# with the value returned by that method. Used to implement the
+	# load-on-access mechanism 
+
 	__slots__ = ["method"]
+
 	def __init__(self, func):
 		self.method = func
+
 	def __get__(self, obj, type=None):
 		if obj is None:
 			# class attribute (descriptor itself)
@@ -340,7 +385,35 @@ class memoize(object):
 			return value
 
 
+def _loader(attrName):
+	# Creates a closure used as a method in Config class (to be decorated with
+	# _memoize) that loads a specific bulkdata table.
+	def method(self):
+		ver, tableName, storageClass, rowClass, primaryKey = self.__tables__[attrName]
+#		if self.cache.machoVersion < ver:
+#			raise RuntimeError("%s table requires machoNet version %d, cache is version %d." % (tableName, ver, self.cache.machoVersion))
+		return self._loadbulkdata(tableName=(tableName or attrName), storageClass=storageClass, rowClass=rowClass, primaryKey=primaryKey)
+	method.func_name = attrName
+	return method
+
+
+class _tablemgr(type):
+	# Creates decorated methods in the Config class that handle loading of
+	# bulkdata tables on accessing the attributes those methods are bound as.
+	# Note: tables that require non-standard handling (e.g. ramtypematerials)
+	# will need methods for that (decorated with @_memoize) in Config class.
+
+	def __init__(cls, name, bases, dict):
+		type.__init__(cls, name, bases, dict)
+		for attrName in cls.__tables__:
+			if hasattr(cls, attrName):
+				# specialized loader method exists.
+				continue
+			setattr(cls, attrName, _memoize(_loader(attrName)))
+
+
 class Config(object):
+	__metaclass__ = _tablemgr
 
 	"""Interface to bulkdata.
 
@@ -445,92 +518,105 @@ class Config(object):
 		}
 
 
-	# on-demand loaders for each table follow
+	#-------------------------------------------------------------------------------------------------------------------
+	# BulkData Table Definitions.
+	# ver            - minimum machoNet version required to load this table with prime() method
+	# cfg attrib     - name the table is accessed with in cfg.* (e.g. cfg.invtypes)
+	# bulkdata name  - name of the bulkdata in the cache file if not same as cfg attrib, else None.
+	# storage class  - container class for the table data. can be string to generate FilterRowset from named table.
+	# row class      - the class used to wrap rows with when they are requested.
+	# primary key    - primary key
+	__tables__ = {
+		# cfg attrib                 : (ver, bulkdata name     , storage class       , row class         , primary key)
+		"evegraphics"                : (  0, "graphics"        , Recordset           , EveGraphics       , "graphicID"),
+		"invcategories"              : (  0, "categories"      , Recordset           , InvCategory       , "categoryID"),
+		"invgroups"                  : (  0, "groups"          , Recordset           , InvGroup          , "groupID"),
+		"groupsByCategories"         : (  0, None              , "invgroups"         , None              , "categoryID"),
+		"invtypes"                   : (  0, "types"           , Recordset           , InvType           , "typeID"),
+		"typesByGroups"              : (  0, None              , "invtypes"          , None              , "groupID"),
+		"typesByMarketGroups"        : (  0, None              , "invtypes"          , None              , "marketGroupID"),
+		"invmetagroups"              : (  0, "metagroups"      , Recordset           , InvMetaGroup      , "metaGroupID"),
+		"invmetatypes"               : (  0, "metatypes"       , util.FilterRowset   , None              , "parentTypeID"),  # custom loader!
+		"invmetatypesByTypeID"       : (  0, None              , None                , None              , None),  # custom loader!
+		"invbptypes"                 : (  0, "bptypes"         , Recordset           , util.Row          , "blueprintTypeID"),
+		"invreactiontypes"           : (  0, "invtypereactions", util.FilterRowset   , None              , "reactionTypeID"),
+		"shiptypes"                  : (  0, None              , util.IndexRowset    , util.Row          , "shipTypeID"),
+		"dgmattribs"                 : (  0, None              , ItemsRecordset      , DgmAttribute      , "attributeID"),
+		"dgmeffects"                 : (  0, None              , ItemsRecordset      , DgmEffect         , "effectID"),
+		"dgmtypeattribs"             : (  0, None              , util.IndexedRowLists, util.Row          , ('typeID',)),
+		"dgmtypeeffects"             : (  0, None              , util.IndexedRowLists, util.Row          , ('typeID',)),
+		"eveunits"                   : (  0, "units"           , Recordset           , util.Row          , "unitID"),
+		"eveowners"                  : (  0, "owners"          , Recordset           , EveOwners         , "ownerID"),  # custom loader!
+		"evelocations"               : (  0, "locations"       , Recordset           , EveLocations      , "locationID"),  # custom loader!
+		"ramaltypes"                 : (  0, None              , Recordset           , util.Row          , "assemblyLineTypeID"),
+		"ramactivities"              : (  0, None              , Recordset           , RamActivity       , "activityID"),
+		"ramcompletedstatuses"       : (  0, None              , Recordset           , RamCompletedStatus, "completedStatusID"),
+		"ramaltypesdetailpercategory": (  0, None              , util.FilterRowset   , None              , "assemblyLineTypeID"),
+		"ramaltypesdetailpergroup"   : (  0, None              , util.FilterRowset   , None              , "assemblyLineTypeID"),
+		"billtypes"                  : (  0, None              , Recordset           , Billtype          , 'billTypeID'),
+		"certificates"               : (  0, None              , Recordset           , Certificate       , "certificateID"),
+		"certificaterelationships"   : (  0, None              , Recordset           , util.Row          , "relationshipID"),
+		"corptickernames"            : (  0, "tickernames"     , Recordset           , CrpTickerNames    , "corporationID"),
+		"allianceshortnames"         : (  0, None              , Recordset           , AllShortNames     , "allianceID"),
+		"mapcelestialdescriptions"   : (  0, None              , Recordset           , MapCelestialDescription, "celestialID"),
+		"locationwormholeclasses"    : (  0, None              , Recordset           , util.Row          , "locationID"),
+		"invcontrabandTypesByFaction": (  0, None              , dict                , None              , None),  # custom loader!
+		"invcontrabandTypesByType"   : (  0, None              , dict                , None              , None),  # custom loader!
+		"locationscenes"             : (242, None              , Recordset           , util.Row          , 'locationID'),
+		"ownericons"                 : (242, None              , Recordset           , util.Row          , 'ownerID'),
+		"icons"                      : (242, None              , Recordset           , util.Row          , 'iconID'),
+		"sounds"                     : (242, None              , Recordset           , util.Row          , 'soundID'),
+		"schematics"                 : (242, None              , Recordset           , Schematic         , 'schematicID'),
+		"schematicstypemap"          : (242, None              , Recordset           , util.Row          , 'schematicID'),
+		"schematicsByType"           : (242, None              , "schematicstypemap" , None              , 'typeID'),
+		"schematicspinmap"           : (242, None              , Recordset           , util.Row          , 'schematicID'),
+		"schematicsByPin"            : (242, None              , "schematicspinmap"  , None              , 'pinTypeID'),
+		"ramtyperequirements"        : (242, None              , dict                , None              , ('typeID', 'activityID')),
+		"ramtypematerials"           : (242, None              , dict                , None              , 'typeID'),
+#		"planetattributes"           : (242, None              , None                , None              , None),  # N/A
+	}
 
-	@memoize
-	def invcategories(self):
-		return self._loadfrombulk("categories", self.defaults.invcategories)
 
-	@memoize
-	def invgroups(self):
-		return self._loadfrombulk("groups", self.defaults.invgroups)
+	# Custom table loader methods follow
 
-	@memoize
-	def metagroups(self):
-		return self._loadfrombulk("metagroups", self.defaults.invmetagroups)
-
-	@memoize
-	def invtypes(self):
-		return self._loadfrombulk("types", self.defaults.invtypes)
-
-	@memoize
-	def invbptypes(self):
-		return self._loadfrombulk("bptypes", self.defaults.invbptypes)
-
-	@memoize
+	@_memoize
 	def eveowners(self):
-		rs = self._loadfrombulk("owners", self.defaults.eveowners)
-		self._loadfrombulk("config.StaticOwners", rs, hint=1)
+		rs = self._loadbulkdata("owners", Recordset, EveOwners, "ownerID")
+		self._loadbulkdata("config.StaticOwners", dest=rs)
 		return rs
 
-	@memoize
-	def corptickernames(self):
-		return self._loadfrombulk("tickernames", self.defaults.corptickernames)
+	@_memoize
+	def evelocations(self):
+		rs = self._loadbulkdata("locations", Recordset, EveLocations, "locationID")
+		self._loadbulkdata("config.StaticLocations", dest=rs)
+		return rs
 
-	@memoize
-	def allianceshortnames(self):
-		return self._loadfrombulk("allianceshortnames", self.defaults.allianceshortnames)
+	def _invcontrabandtypes_load(self):
+		byFaction = self.invcontrabandTypesByFaction = {}
+		byType = self.invcontrabandFactionsByType = {}
 
-	@memoize
-	def certificates(self):
-		return self._loadfrombulk("certificates", self.defaults.certificates)
+		obj = self.cache.LoadObject("config.InvContrabandTypes")
 
-	@memoize
-	def certificaterelationships(self):
-		return self._loadfrombulk("certificaterelationships", self.defaults.certificaterelationships)
+		for each in obj:
+			typeID = each.typeID
+			factionID = each.factionID
 
-	@memoize
-	def evegraphics(self):
-		return self._loadfrombulk("graphics", self.defaults.evegraphics)
+			if factionID not in byFaction:
+				byFaction[factionID] = {}
+			byFaction[factionID][typeID] = each
+			if typeID not in byType:
+				byType[typeID] = {}
+			byType[typeID][factionID] = each
 
-	@memoize
-	def eveunits(self):
-		return self._loadfrombulk("units", self.defaults.eveunits)
+	@_memoize
+	def invcontrabandTypesByFaction(self):
+		self._invcontrabandtypes_load()
+		return self.invcontrabandTypesByFaction
 
-	@memoize
-	def groupsByCategories(self):
-		if self.compatibility:
-			self.groupsByCategories = util.FilterRowset(self.invgroups.header, self.invgroups.data.values(), "categoryID")
-		else:
-			self.groupsByCategories = self.invgroups.GroupedBy("categoryID")
-		return self.groupsByCategories
-
-	@memoize
-	def typesByGroups(self):
-		if self.compatibility:
-			self.typesByGroups = util.FilterRowset(self.invtypes.header, self.invtypes.data.values(), "groupID")
-		else:
-			self.typesByGroups = self.invtypes.GroupedBy("groupID")
-		return self.typesByGroups
-
-	@memoize
-	def typesByMarketGroups(self):
-		if self.compatibility:
-			self.typesByMarketGroups = util.FilterRowset(self.invtypes.header, self.invtypes.data.values(), "marketGroupID")
-		else:
-			self.typesByMarketGroups = self.invtypes.GroupedBy("marketGroupID")
-		return self.typesByMarketGroups
-
-	@memoize
-	def shiptypes(self):
-		obj = self.cache.LoadObject("config.BulkData.shiptypes")
-		if type(obj) is tuple:
-			# old style.
-			self.shiptypes = util.IndexRowset(obj[0], obj[1], "shipTypeID")
-		else:
-			self.shiptypes = util.IndexRowset(obj.header.Keys(), list(obj), "shipTypeID")
-		return self.shiptypes
-
+	@_memoize
+	def invcontrabandTypesByType(self):
+		self._invcontrabandtypes_load()
+		return self.invcontrabandFactionsByType
 
 	def _invmetatypes_load(self):
 		obj = self.cache.LoadObject("config.BulkData.invmetatypes")
@@ -539,249 +625,141 @@ class Config(object):
 			self.invmetatypes = util.FilterRowset(obj[0], obj[1], "parentTypeID")
 			self.invmetatypesByTypeID = util.FilterRowset(obj[0], obj[1], "typeID")
 		else:
-			self.invmetatypes = util.FilterRowset(obj.header.Keys(), list(obj), "parentTypeID")
-			self.invmetatypesByTypeID = util.FilterRowset(obj.header.Keys(), list(obj), "typeID")
+			header = obj.header.Keys()
+			self.invmetatypes = util.FilterRowset(header, obj, "parentTypeID")
+			self.invmetatypesByTypeID = util.FilterRowset(header, obj, "typeID")
 
-	@memoize
+	@_memoize
 	def invmetatypes(self):
 		self._invmetatypes_load()
 		return self.invmetatypes
 
-	@memoize
+	@_memoize
 	def invmetatypesByTypeID(self):
 		self._invmetatypes_load()
 		return self.invmetatypesByTypeID
-
-	@memoize
-	def dgmattribs(self):
-		return self._loadfrombulk("dgmattribs", self.defaults.dgmattribs, "IndexRowset", "attributeID", RowClass=DgmAttribute)
-
-	@memoize
-	def dgmeffects(self):
-		return self._loadfrombulk("dgmeffects", self.defaults.dgmeffects, "IndexRowset", "effectID", RowClass=DgmEffect)
-
-	@memoize
-	def dgmtypeattribs(self):
-		return self._loadfrombulk("dgmtypeattribs", self.defaults.dgmtypeattribs, "IndexedRowLists", "typeID")
-
-	@memoize
-	def dgmtypeeffects(self):
-		return self._loadfrombulk("dgmtypeeffects", self.defaults.dgmtypeeffects, "IndexedRowLists", "typeID")
-
-	@memoize
-	def ramaltypes(self):
-		return self._loadfrombulk("ramaltypes", self.defaults.ramaltypes)
-
-	@memoize
-	def ramactivities(self):
-		return self._loadfrombulk("ramactivities", self.defaults.ramactivities)
-
-	@memoize
-	def ramcompletedstatuses(self):
-		return self._loadfrombulk("ramcompletedstatuses", self.defaults.ramcompletedstatuses)
-
-	@memoize
-	def invtypereactions(self):
-		return self._loadfrombulk("invtypereactions", self.defaults.invreactiontypes, "FilterRowset", "reactionTypeID")
-
-	@memoize
-	def ramaltypesdetailpercategory(self):
-		return self._loadfrombulk("ramaltypesdetailpercategory", self.defaults.ramaltypesdetailpercategory, "FilterRowset", "assemblyLineTypeID")
-
-	@memoize
-	def ramaltypesdetailpergroup(self):
-		return self._loadfrombulk("ramaltypesdetailpergroup", self.defaults.ramaltypesdetailpergroup, "FilterRowset", "assemblyLineTypeID")
-
-	@memoize
-	def ramtypematerials(self):
-		return self._loadfrombulk("ramtypematerials", self.defaults.ramtypematerials, "special1")
-
-	@memoize
-	def ramtyperequirements(self):
-		return self._loadfrombulk("ramtyperequirements", self.defaults.ramtyperequirements, "special2")
-
-	@memoize
-	def evelocations(self):
-		rs = self._loadfrombulk("locations", self.defaults.evelocations)
-		self._loadfrombulk("config.StaticLocations", rs, hint=1)
-		return rs
-
-	@memoize
-	def mapcelestialdescriptions(self):
-		return self._loadfrombulk("mapcelestialdescriptions", self.defaults.mapcelestialdescriptions)
-
-	@memoize
-	def locationwormholeclasses(self):
-		return self._loadfrombulk("locationwormholeclasses", self.defaults.locationwormholeclasses)
-
-
-	def _invcontrabandtypes_load(self):
-		self.invcontrabandTypesByFaction = {}
-		self.invcontrabandFactionsByType = {}
-		obj = self.cache.LoadObject("config.InvContrabandTypes")
-		for each in obj:
-			if each.factionID not in self.invcontrabandTypesByFaction:
-				self.invcontrabandTypesByFaction[each.factionID] = {}
-			self.invcontrabandTypesByFaction[each.factionID][each.typeID] = each
-			if each.typeID not in self.invcontrabandFactionsByType:
-				self.invcontrabandFactionsByType[each.typeID] = {}
-			self.invcontrabandFactionsByType[each.typeID][each.factionID] = each
-
-	@memoize
-	def invcontrabandTypesByFaction(self):
-		self._invcontrabandtypes_load()
-		return self.invcontrabandTypesByFaction
-
-	@memoize
-	def invcontrabandTypesByFaction(self):
-		self._invcontrabandtypes_load()
-		return self.invcontrabandFactionsByType
-
 
 
 	def __init__(self, cache, compatibility=False):
 		self.cache = cache
 		self.callback = None
 		self.compatibility = compatibility
+		protocol = self.cache.machoVersion
 
-		self.tables = frozenset((tableName for tableName in dir(self.__class__) if isinstance(getattr(self.__class__, tableName), memoize)))
-
-		# define default table properties
-
-		defaults = self.defaults = Dud()
-
-		defaults.invcategories = Recordset(InvCategory, "categoryID")
-		defaults.invgroups = Recordset(InvGroup, "groupID")
-		defaults.invmetagroups = Recordset(InvMetaGroup, "metaGroupID")
-		defaults.invtypes = Recordset(InvType, "typeID")
-		defaults.invbptypes = Recordset(util.Row, "blueprintTypeID")
-		defaults.dgmattribs = ItemsRecordset(DgmAttribute, "attributeID")
-		defaults.dgmeffects = ItemsRecordset(DgmEffect, "effectID")
-		defaults.dgmtypeeffects = util.FilterRowset()
-		defaults.dgmtypeattribs = util.FilterRowset()
-		defaults.invmetatypes = util.FilterRowset()
-
-		defaults.invreactiontypes = util.FilterRowset()
-
-		defaults.evegraphics = Recordset(EveGraphics, "graphicID")
-		defaults.eveunits = Recordset(util.Row, "unitID")
-		defaults.eveowners = Recordset(EveOwners, "ownerID")
-		defaults.evelocations = Recordset(EveLocations, "locationID")
-		defaults.corptickernames = Recordset(CrpTickerNames, "corporationID")
-		defaults.allianceshortnames = Recordset(AllShortNames, "allianceID")
-
-		defaults.ramaltypes = Recordset(util.Row, "assemblyLineTypeID")
-		defaults.ramaltypesdetailpercategory = util.FilterRowset()
-		defaults.ramaltypesdetailpergroup = util.FilterRowset()
-		defaults.ramactivities = Recordset(RamActivity, "activityID")
-		defaults.ramtyperequirements = {}
-		defaults.ramtypematerials = Recordset(util.Row, "typeID")
-		defaults.ramcompletedstatuses = Recordset(RamCompletedStatus, "completedStatusID")
-		defaults.mapcelestialdescriptions = Recordset(MapCelestialDescription, "celestialID")
-
-		defaults.certificates = Recordset(Certificate, "certificateID")
-		defaults.certificaterelationships = Recordset(util.Row, "relationshipID")
-
-		defaults.locationwormholeclasses = Recordset(util.Row, "locationID")
-
+		# Figure out the set of tables managed by this instance.
+		# Only tables that are available for this instance's particular
+		# machoNet version will be in this set, and are the only tables loaded
+		# when prime() is called.
+		self.tables = frozenset( \
+			(attrName for attrName in dir(self.__class__) \
+			if isinstance(getattr(self.__class__, attrName), _memoize) \
+			and protocol >= self.__tables__[attrName][0]) \
+		)
 		self._attrCache = {}
 
 
 	def release(self):
 		for tableName in self.tables:
-			delattr(self, tableName)
+			try:
+				delattr(self, tableName)
+			except AttributeError:
+				pass
+
 		self._attrCache = {}
 
-	def _loadfrombulk(self, this, dst, typ=None, key=None, RowClass=None, hint=False):
 
-		# get table name.
-		if not hint:
-			for tableName, table in self.defaults.__dict__.iteritems():
-				if table is dst:
-					break
+	def _loadbulkdata(self, tableName=None, storageClass=None, rowClass=None, primaryKey=None, dest=None):
 
-		if this.startswith("config."):
-			what = this
-		else:
-			what = "config.BulkData." + this
+		fullTableName = tableName if tableName.startswith("config.") else "config.BulkData."+tableName
 
-		obj = self.cache.LoadObject(what)
+		if dest:
+			# This is hint data; just add it to the specified table (dest)
+			# Assumes dest is an IndexRowset compatible object.
 
-		if typ is None:
-			# Simple load (IndexRowset compatible)
+			obj = self.cache.LoadObject(tableName)
 
+			rs = dest
+			if type(obj) is not dbutil.CRowset:
+				# pre-Tyrannis (protocol 235) this was a Rowset, not a CRowset.
+				obj = obj.lines
+
+			# add the lines
+			rs.lines.extend(obj)
+
+			# fix index
+			ki = rs.key
+			i = rs.items
+			for line in obj:
+				i[line[ki]] = line
+
+			return rs
+
+		if type(storageClass) is str:
+			# create a FilterRowset from existing table named by storageClass.
+			table = getattr(self, storageClass)
 			if self.compatibility:
-				if type(obj) == dbutil.CRowset:
-					table.header = obj.header.Keys()
-					table.data.clear()
-					keycol = obj.header.Keys().index(table.keycolumn)
+				rs = util.FilterRowset(table.header, table.data.values(), primaryKey)
+			else:
+				rs = table.GroupedBy(primaryKey)
+			return rs
+
+		obj = self.cache.LoadObject(fullTableName)
+
+		if issubclass(storageClass, Recordset):
+			if self.compatibility:
+				# use the Recordsets like EVE, for compatibility (don't ask).
+				dest = storageClass(rowClass, primaryKey)
+				data = dest.data
+
+				if type(obj) is dbutil.CRowset:
+					dest.header = _header_type(obj.header.Keys())
+					keycol = dest.header.index(primaryKey)
 					for i in obj:
 						a = list(i)
-						table.data[a[keycol]] = a
+						data[a[keycol]] = a
 				else:
-					table.data.clear()
-					table.header = obj[0]            
-					keycol = table.header.index(dst.keycolumn)
+					dest.header = obj[0]            
+					keycol = dest.header.index(primaryKey)
 					for i in obj[1]:
-						table.data[i[keycol]] = i
+						data[i[keycol]] = i
 			else:
-				# Custom loading. Slightly faster and more powerful.
-				if hint:
-					# if this is hint data, just add it to the specified table (dst)
-					rs = dst
-
-					if type(obj) != dbutil.CRowset:
-						# pre-Tyrannis (protocol 235) this was a Rowset, not a CRowset.
-						obj = obj.lines
-
-					# add the lines
-					rs.lines.extend(obj)
-
-					# fix index
-					ki = rs.key
-					i = rs.items
-					for line in obj:
-						i[line[ki]] = line
+				# Custom loading; uses IndexRowset for the data instead of Recordset.
+				# Faster, and IndexRowsets have more functionality.
+				if type(obj) is dbutil.CRowset:
+					rs = util.IndexRowset(_header_type(obj.header.Keys()), obj, key=primaryKey, RowClass=rowClass, cfgInstance=self)
 				else:
-					if type(obj) == dbutil.CRowset:
-						rs = util.IndexRowset(obj.header.Keys(), obj, key=table.keycolumn, RowClass=table.rowclass, cfgInstance=self)
-					else:
-						rs = util.IndexRowset(obj[0], obj[1], key=table.keycolumn, RowClass=table.rowclass, cfgInstance=self)
+					rs = util.IndexRowset(obj[0], obj[1], key=primaryKey, RowClass=rowClass, cfgInstance=self)
+
+		elif issubclass(storageClass, util.FilterRowset):
+			rs = storageClass(_header_type(obj.header.Keys()), obj, primaryKey)
+
+		elif issubclass(storageClass, util.IndexedRowLists):
+			rs = storageClass(obj, keys=primaryKey)
+
+		elif issubclass(storageClass, util.IndexRowset):
+			if type(obj) is tuple:
+				# old style.
+				rs = storageClass(obj[0], obj[1], "shipTypeID")
+			else:
+				rs = storageClass(obj.header.Keys(), obj, "shipTypeID")
+
+		elif issubclass(storageClass, dict):
+			rs = {}
+			if type(primaryKey) is tuple:
+				getkey = lambda row: tuple(map(row.__getitem__, primaryKey))
+			else:
+				getkey = lambda row: getattr(row, primaryKey)
+
+			for row in obj:
+				key = getkey(row)
+				li = rs.get(key, False)
+				if li:
+					li.append(row)
+				else:
+					rs[key] = [row]
 
 		else:
-			# Specialized load
-
-			if typ == "FilterRowset":
-				rs = util.FilterRowset(obj.header.Keys(), list(obj), key)
-
-			elif typ == "special1":
-				rs = {}
-				for row in obj:
-					key = row.typeID
-					if key in rs:
-						rs[key].append(row)
-					else:
-						rs[key] = [row]
-
-			elif typ == "special2":
-				rs = {}
-				for row in obj:
-					key = row.typeID, row.activityID
-					if key in rs:
-						rs[key].append(row)
-					else:
-						rs[key] = [row]
-	
-			elif typ == "IndexRowset":
-				if type(obj) == dbutil.CRowset:
-					# Protocol 242 and up.
-					rs = util.IndexRowset(obj[0].__header__.Keys(), obj, key, RowClass=RowClass)
-				else:
-					# Protocol 235 and below.
-					rs = util.IndexRowset(obj[0], obj[1], key, RowClass=RowClass)
-
-			elif typ == "IndexedRowLists":
-				rs = util.IndexedRowLists(obj, (key,))
+			raise RuntimeError("Invalid storageClass: %s" % storageClass)
 
 		return rs
 
@@ -818,6 +796,7 @@ which will be called as func(current, total, tableName).
 			total = len(tables)
 		
 			for tableName in tables:
+
 				if callback:
 					callback(current, total, tableName)
 					current += 1

@@ -164,19 +164,16 @@ class EVE(object):
 
 
 def _readstringstable():
-	from os.path import join, dirname
+	from . import strings
 
-	marshal._stringtable[:] = [None]
+	marshal._stringtable[:] = strings.stringTable
 	#marshal._stringtable_rev.clear()
 
-	f = open(join(dirname(__file__), "strings.txt"), "r")
-	c = 1
-	for line in f:
-		line = line.replace("\r","\n").strip('\n')
-		marshal._stringtable.append(line)
-		#marshal._stringtable_rev[line] = c
-		c+=1
-	f.close()
+	#c = 1
+	#for line in strings.stringsTable:
+	#	marshal._stringtable_rev[line] = c
+	#	c+=1
+
 
 
 def _find_global(module, name):

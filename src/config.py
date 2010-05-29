@@ -351,8 +351,8 @@ class Schematic(util.Row):
 		return 'Schematic: %s (%d)' % (self.schematicName, self.schematicID)
 
 	def __cmp__(self, other):
-		if type(other) == types.IntType:
-			return types.IntType.__cmp__(self.schematicID, other)
+		if type(other) == int:
+			return int.__cmp__(self.schematicID, other)
 		else:
 			return util.Row.__cmp__(self, other)
 

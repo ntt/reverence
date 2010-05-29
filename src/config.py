@@ -16,7 +16,6 @@ Parts of code inspired by or based on EVE Online, with permission from CCP.
 # TODO:
 # - multi language support :)
 
-import os
 import time
 import sys
 
@@ -355,10 +354,6 @@ class Schematic(util.Row):
 			return int.__cmp__(self.schematicID, other)
 		else:
 			return util.Row.__cmp__(self, other)
-
-
-class Dud(object):
-	pass
 
 
 # Warning: Code below may accidentally your whole brain.

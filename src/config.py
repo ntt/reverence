@@ -562,10 +562,10 @@ class Config(object):
 		"icons"                      : (242, None              , Recordset           , util.Row          , 'iconID'),
 		"sounds"                     : (242, None              , Recordset           , util.Row          , 'soundID'),
 		"schematics"                 : (242, None              , Recordset           , Schematic         , 'schematicID'),
-		"schematicstypemap"          : (242, None              , Recordset           , util.Row          , 'schematicID'),
-		"schematicsByType"           : (242, None              , "schematicstypemap" , None              , 'typeID'),
-		"schematicspinmap"           : (242, None              , Recordset           , util.Row          , 'schematicID'),
-		"schematicsByPin"            : (242, None              , "schematicspinmap"  , None              , 'pinTypeID'),
+		"schematicstypemap"          : (242, None              , util.FilterRowset   , None              , 'schematicID'),  # custom loader!
+		"schematicsByType"           : (242, None              , util.FilterRowset   , None              , 'typeID'),  # custom loader!
+		"schematicspinmap"           : (242, None              , util.FilterRowset   , None              , 'schematicID'),  # custom loader!
+		"schematicsByPin"            : (242, None              , util.FilterRowset   , None              , 'pinTypeID'),  # custom loader!
 		"ramtyperequirements"        : (242, None              , dict                , None              , ('typeID', 'activityID')),
 		"ramtypematerials"           : (242, None              , dict                , None              , 'typeID'),
 #		"planetattributes"           : (242, None              , None                , None              , None),  # N/A
@@ -585,6 +585,8 @@ class Config(object):
 		rs = self._loadbulkdata("locations", Recordset, EveLocations, "locationID")
 		self._loadbulkdata("config.StaticLocations", dest=rs)
 		return rs
+
+	#--
 
 	def _invcontrabandtypes_load(self):
 		byFaction = self.invcontrabandTypesByFaction = {}
@@ -613,6 +615,44 @@ class Config(object):
 		self._invcontrabandtypes_load()
 		return self.invcontrabandFactionsByType
 
+	#--
+
+	def _schematicstypemap_load(self):
+		obj = self.cache.LoadObject("config.BulkData.schematicstypemap")
+		header = obj.header.Keys()
+		self.schematicstypemap = util.FilterRowset(header, obj, "schematicID")
+		self.schematicsByType = util.FilterRowset(header, obj, "typeID")
+
+	@_memoize
+	def schematicstypemap(self):
+		self._schematicstypemap_load()
+		return self.schematicstypemap
+
+	@_memoize
+	def schematicsByType(self):
+		self._schematicstypemap_load()
+		return self.schematicsByType
+
+	#--
+
+	def _schematicspinmap_load(self):
+		obj = self.cache.LoadObject("config.BulkData.schematicspinmap")
+		header = obj.header.Keys()
+		self.schematicspinmap = util.FilterRowset(header, obj, "schematicID")
+		self.schematicsByPin = util.FilterRowset(header, obj, "pinTypeID")
+
+	@_memoize
+	def schematicspinmap(self):
+		self._schematicspinmap_load()
+		return self.schematicspinmap
+
+	@_memoize
+	def schematicsByPin(self):
+		self._schematicspinmap_load()
+		return self.schematicsByPin
+
+	#--
+
 	def _invmetatypes_load(self):
 		obj = self.cache.LoadObject("config.BulkData.invmetatypes")
 		if type(obj) is tuple:
@@ -634,6 +674,7 @@ class Config(object):
 		self._invmetatypes_load()
 		return self.invmetatypesByTypeID
 
+	#--
 
 	def __init__(self, cache, compatibility=False):
 		self.cache = cache

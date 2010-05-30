@@ -198,7 +198,7 @@ def _debug(text):
 # take considerably more effort to implement in C. It's not the most efficient
 # way to display DBRows, but quite useful for debugging or inspection.
 _fmt = u"%s:%s".__mod__
-def c(row):
+def dbrow_str(row):
 	return "DBRow(" + ','.join(map(_fmt, zip(row.__keys__, row))) + ")"
 _blue.dbrow_str = dbrow_str
 

@@ -23,8 +23,6 @@ from . import const, util, dbutil
 
 _urga = util.Row.__getattr__
 
-_header_type = tuple if hasattr(tuple, "index") else list
-
 
 class RecordsetIterator(object):
 	def next(self):
@@ -748,7 +746,7 @@ class Config(object):
 				data = dest.data
 
 				if type(obj) is dbutil.CRowset:
-					dest.header = _header_type(obj.header.Keys())
+					dest.header = obj.header.Keys()
 					keycol = dest.header.index(primaryKey)
 					for i in obj:
 						a = list(i)
@@ -762,12 +760,12 @@ class Config(object):
 				# Custom loading; uses IndexRowset for the data instead of Recordset.
 				# Faster, and IndexRowsets have more functionality.
 				if type(obj) is dbutil.CRowset:
-					rs = util.IndexRowset(_header_type(obj.header.Keys()), obj, key=primaryKey, RowClass=rowClass, cfgInstance=self)
+					rs = util.IndexRowset(obj.header.Keys(), obj, key=primaryKey, RowClass=rowClass, cfgInstance=self)
 				else:
 					rs = util.IndexRowset(obj[0], obj[1], key=primaryKey, RowClass=rowClass, cfgInstance=self)
 
 		elif issubclass(storageClass, util.FilterRowset):
-			rs = storageClass(_header_type(obj.header.Keys()), obj, primaryKey)
+			rs = storageClass(obj.header.Keys(), obj, primaryKey)
 
 		elif issubclass(storageClass, util.IndexedRowLists):
 			rs = storageClass(obj, keys=primaryKey)

@@ -197,8 +197,9 @@ def _debug(text):
 # __str__ function for DBRow objects. This is done in python because it would
 # take considerably more effort to implement in C. It's not the most efficient
 # way to display DBRows, but quite useful for debugging or inspection.
-def dbrow_str(row):
-	return "DBRow(" + ','.join(map(lambda k, v: "%s:%s" % (unicode(k), unicode(v)), row.__keys__, row)) + ")"
+_fmt = u"%s:%s".__mod__
+def c(row):
+	return "DBRow(" + ','.join(map(_fmt, zip(row.__keys__, row))) + ")"
 _blue.dbrow_str = dbrow_str
 
 

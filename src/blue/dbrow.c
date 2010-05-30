@@ -17,6 +17,7 @@
 #define PTRSIZE sizeof(void *)
 #define ALIGNED(x) (((x) + PTRSIZE-1) & ~(PTRSIZE-1))
 
+static PyObject *blue, *py_dbrow_str;
 
 __inline static int rle_pack(char *in, int in_size, char *out, int *out_size)
 {
@@ -475,11 +476,11 @@ rd_Keys(PyDBRowDescriptorObject *self)
 	{
 		int i;
 
-		if(!(self->rd_header = PyTuple_New(self->ob_size)))
+		if(!(self->rd_header = PyList_New(self->ob_size)))
 			return NULL;
 
 		for(i=0; i < self->ob_size; i++)
-			PyTuple_SET_ITEM(self->rd_header, i, PyString_FromString(self->rd_cd[i].cd_name));
+			PyList_SET_ITEM(self->rd_header, i, PyString_FromString(self->rd_cd[i].cd_name));
 	}
 
 	Py_INCREF(self->rd_header);
@@ -785,6 +786,11 @@ dbrow_getattr(PyDBRowObject *self, PyObject *name)
 			return (PyObject *)self->dbrow_header;
 		}
 
+		if(!strcmp("__keys__", attr))
+		{
+			return rd_Keys(self->dbrow_header);
+		}
+
 		if(!strcmp("__guid__", attr))
 		{
 			return (PyObject *)PyString_FromString("blue.DBRow");
@@ -818,6 +824,19 @@ dbrow_getattr(PyDBRowObject *self, PyObject *name)
 		return PyObject_GenericGetAttr((PyObject *)self, name);
 
 	return getFromCD(self, cd);
+}
+
+
+static PyObject *
+dbrow_str(PyDBRowObject *self)
+{
+	PyObject *result = NULL, *str;
+	if(str = PyObject_GetAttr((PyObject *)blue, py_dbrow_str))
+	{
+		result = PyObject_CallFunction(str, "O", self);
+		Py_DECREF(str);
+	}
+	return result;
 }
 
 
@@ -910,7 +929,7 @@ PyTypeObject PyDBRow_Type = {
 	&dbrow_as_mapping,	/* tp_as_mapping */
 	0,					/* tp_hash */
 	0,					/* tp_call */
-	0,					/* tp_str */
+	(reprfunc)&dbrow_str,			/* tp_str */
 	(getattrofunc)dbrow_getattr,	/* tp_getattro */
 	(setattrofunc)dbrow_setattr,	/* tp_setattro */
 	0,					/* tp_as_buffer */
@@ -962,6 +981,9 @@ int init_dbrow(PyObject *m)
 
 	Py_INCREF((PyObject*)&PyDBRowDescriptor_Type);
 	PyModule_AddObject(m, "DBRowDescriptor", (PyObject*)&PyDBRowDescriptor_Type);
+
+	py_dbrow_str = PyString_FromString("dbrow_str");
+	blue = m;
 
 	return 1;
 }

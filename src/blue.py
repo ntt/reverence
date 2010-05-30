@@ -8,7 +8,8 @@ included with the distribution).
 """
 
 from ._blue import marshal, DBRow, DBRowDescriptor
-from . import cache, _os as os
+from . import cache, _os as os, _blue
+
 
 try:
 	from . import marshal_writer
@@ -193,10 +194,20 @@ def _debug(text):
 	print >>sys.stderr, text
 
 
+# __str__ function for DBRow objects. This is done in python because it would
+# take considerably more effort to implement in C. It's not the most efficient
+# way to display DBRows, but quite useful for debugging or inspection.
+def dbrow_str(row):
+	return "DBRow(" + ','.join(map(lambda k, v: "%s:%s" % (unicode(k), unicode(v)), row.__keys__, row)) + ")"
+_blue.dbrow_str = dbrow_str
+
+
 # set the helper functions in the marshaller and init strings table
 marshal._set_find_global_func(_find_global)
 marshal._set_debug_func(_debug)
 _readstringstable()
+
+
 
 
 

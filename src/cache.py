@@ -21,18 +21,18 @@ from . import config
 from . import _blue as blue
 
 
-def GetCacheFileName(this, machoVersion=99999):
+def GetCacheFileName(key, machoVersion=99999):
 	"""Returns filename for specified object name."""
 
 	if machoVersion >= 213:
-		return "%x.cache" % binascii.crc_hqx(cPickle.dumps(this), 0)
+		return "%x.cache" % binascii.crc_hqx(cPickle.dumps(key), 0)
 # Legacy stuff. Deprecated. Here for historical reasons :)
 	#elif machoVersion >= 151:
-	#	return "%x.cache" % binascii.crc_hqx((blue.marshal.Save(this, machoVersion=machoVersion)), 0)
+	#	return "%x.cache" % binascii.crc_hqx((blue.marshal.Save(key, machoVersion=machoVersion)), 0)
 	#elif machoVersion >= 136:
-	#	return blue.marshal.Save(this).encode("base64").replace('=', '').replace('/', '-').replace('\n', '') + ".cache"
+	#	return blue.marshal.Save(key).encode("base64").replace('=', '').replace('/', '-').replace('\n', '') + ".cache"
 	#else:
-	#	return blue.marshal.Save(this).encode("hex") + ".cache"
+	#	return blue.marshal.Save(key).encode("hex") + ".cache"
 	else:
 		raise RuntimeError("machoNet version 213 or higher required")
 
@@ -188,30 +188,30 @@ class CacheMgr:
 		return crap
 
 
-	def LoadCachedMethodCall(self, this):
+	def LoadCachedMethodCall(self, key):
 		"""Loads a named object from EVE's CachedMethodCalls folder."""
-		name = os.path.join(self.machocachepath, "CachedMethodCalls", self.GetCacheFileName(this))
+		name = os.path.join(self.machocachepath, "CachedMethodCalls", self.GetCacheFileName(key))
 		what, obj = blue.marshal.Load(open(name, "rb").read())
-		if what != this:
+		if what != key:
 			# Oops. We did not get what we asked for...
-			raise RuntimeError("Hash collision: Wanted '%s' but got '%s'" % (this, what))
+			raise RuntimeError("Hash collision: Wanted '%s' but got '%s'" % (key, what))
 		return obj
 
 
-	def LoadCachedObject(self, this):
+	def LoadCachedObject(self, key):
 		"""Loads a named object from EVE's CachedObjects folder."""
-		fileName = self.GetCacheFileName(this)
+		fileName = self.GetCacheFileName(key)
 		name = os.path.join(self.machocachepath, "CachedObjects", fileName)
 		what, obj = blue.marshal.Load(open(name, "rb").read())
-		if what != this:
+		if what != key:
 			# Oops. We did not get what we asked for...
-			raise RuntimeError("Hash collision: Wanted '%s' but got '%s'" % (this, what))
+			raise RuntimeError("Hash collision: Wanted '%s' but got '%s'" % (key, what))
 		return obj
 
-	def LoadObject(self, this):
+	def LoadObject(self, key):
 		"""Load named object from cache or builkdata, whichever is the higher version."""
 
-		fileName = self.GetCacheFileName(this)
+		fileName = self.GetCacheFileName(key)
 
 		src = None
 		what = None
@@ -231,7 +231,7 @@ class CacheMgr:
 				what, obj2 = blue.marshal.Load(blurb)
 				self._time_load += (time.clock() - _t)
 
-			if what == this:
+			if what == key:
 				if obj2.version > version:
 					obj = obj2
 					version = obj.version
@@ -243,17 +243,17 @@ class CacheMgr:
 		return obj
 
 
-	def GetCacheFileName(self, this):
+	def GetCacheFileName(self, key):
 		"""Returns the filename for specified object name."""
-		return GetCacheFileName(this, self.machoVersion)
+		return GetCacheFileName(key, self.machoVersion)
 
 
-	def FindCacheFile(self, this):
+	def FindCacheFile(self, key):
 		"""Attempts to locate a cache file in any of the cache locations.
 
 		Note: does no version/content check, so do not use for bulkdata.
 		"""
-		fileName = self.GetCacheFileName(this)
+		fileName = self.GetCacheFileName(key)
 		for cacheName in [
 			os.path.join(self.machocachepath, "CachedObjects", fileName),
 			os.path.join(self.bulkdatapath, fileName),
@@ -265,10 +265,10 @@ class CacheMgr:
 		return None
 
 
-	def find(self, this):
+	def find(self, key):
 		"""Locates and loads a cache object. will check version and contents."""
-		fileName = self.GetCacheFileName(this)
-		obj = (this, None)
+		fileName = self.GetCacheFileName(key)
+		obj = (key, None)
 		version = (0L, 0)
 		for cacheName in [
 			os.path.join(self.machocachepath, "CachedObjects", fileName),
@@ -282,7 +282,7 @@ class CacheMgr:
 				what, obj2 = blue.marshal.Load(blurb)
 				self._time_load += (time.clock() - _t)
 
-				if what == this:
+				if what == key:
 					if obj2.version > version:
 						obj = (what, obj2)
 						version = obj2.version

@@ -12,8 +12,8 @@ try:
 except OSError:
     pass
 
-if sys.version_info < (2, 5) or sys.version_info > (2, 7):
-	raise RuntimeError("Python 2.5 or 2.6 required")
+if sys.version_info < (2, 5) or sys.version_info > (2, 8):
+	raise RuntimeError("Python 2.5, 2.6 or 2.7 required")
 
 desc = """\
 Reverence is a decoder for, and interface to the bulkdata, cache and
@@ -28,7 +28,7 @@ setup(
 
 	url = "http://github.com/ntt/reverence",
 
-	version = "1.0.1",
+	version = "1.1.0",
 
 	description = "Interface to EVE Online resources",
 
@@ -38,6 +38,7 @@ setup(
 		"License :: OSI Approved :: BSD License",
 		"Programming Language :: Python :: 2.5",
 		"Programming Language :: Python :: 2.6",
+		"Programming Language :: Python :: 2.7",
 		"Development Status :: 4 - Beta",
 		"Intended Audience :: Developers",
 		"Topic :: Database",

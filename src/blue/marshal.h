@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 // thanks MSVC++ for not including a stdint.h. Who needs standards anyway.
 typedef __int8 int8_t;
 typedef __int16 int16_t;
@@ -28,7 +28,7 @@ typedef unsigned __int32 uint32_t;
 typedef unsigned __int64 uint64_t;
 #else
 #include <stdint.h>
-#endif // _WIN32
+#endif // _MSC_VER
 
 #include "Python.h"
 

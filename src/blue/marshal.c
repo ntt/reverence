@@ -151,7 +151,6 @@ struct Container {
 };
 
 
-
 __inline static PyObject *
 find_global(PyObject *pyname)
 {
@@ -160,12 +159,15 @@ find_global(PyObject *pyname)
 	PyObject *m;
 	PyObject *obj;
 
+	char buffer[64];
+
 	if(!PyString_Check(pyname))
 	{
 		PyErr_SetString(PyExc_RuntimeError, "expected string");
 		return NULL;
 	}
 
+	// if the requested object is in cache, just return that.
 	obj = PyDict_GetItem(global_cache, pyname);
 	if(obj)
 	{
@@ -178,22 +180,45 @@ find_global(PyObject *pyname)
 	dot = strchr(name, '.');
 	if(dot)
 	{
-		*dot = 0;
-		m = PyImport_ImportModule(name);
-		*dot = '.';
+		// name is in "module.object" form
+
+		*dot = 0;  // cut off object name
+
+		// try importing it from reverence first
+		if(strlen(name) < (64-11))
+		{
+			// FIXME: Should really use PyImport_ImportModuleEx here,
+			// but this seems to work fine and is a lot simpler.
+			sprintf(buffer, "reverence.%s", name);
+			m = PyImport_ImportModule(buffer);
+		}
+
+		// otherwise try absolute import
+		if(!m)
+		{
+			PyErr_Clear();
+			m = PyImport_ImportModule(name);
+		}
+
+		*dot = '.';  // restore object name
 	}
 	else
 	{
+		// name is just a module name.
 		m = PyImport_ImportModule("__builtin__");
 	}
 
 	if(m)
 	{
+		// we got a module handle, now get the object asked for.
 		obj = PyObject_GetAttrString(m, dot ? dot+1 : name);
 		Py_DECREF(m);
 	}
 	else
 	{
+		// oops, no module handle. use the python fallback function as a last
+		// ditch effort to get the requested object.
+
 		PyErr_Clear();
 		if(!find_global_func)
 		{
@@ -213,9 +238,11 @@ find_global(PyObject *pyname)
 		}
 	}
 
+	// we should have the requested object now. if not, tough luck.
 	if(!obj)
 		return NULL;
 
+	// now store the result in cache so subsequent requests for this object are faster.
 	if(PyDict_SetItem(global_cache, pyname, obj))
 		return NULL;
 

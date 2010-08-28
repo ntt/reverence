@@ -37,6 +37,80 @@ def GetCacheFileName(key, machoVersion=99999):
 		raise RuntimeError("machoNet version 213 or higher required")
 
 
+def _findcachepath(root, servername):
+	# returns (root, cachepath) tuple where eve stuff may be found.
+
+	if os.name == "nt":
+		cacheFolderName = root.lower().replace(":", "").replace("\\", "_").replace(" ", "_")
+		cacheFolderName += "_"+servername.lower()
+
+		from ctypes import wintypes, windll, c_int
+		CSIDL_LOCAL_APPDATA = 28
+		path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
+		result = windll.shell32.SHGetFolderPathW(0, CSIDL_LOCAL_APPDATA, 0, 0, path_buf)
+		if result:
+			raise RuntimeError("SHGetFolderPath failed, error code 0x%08x" % result)
+		cachepath = os.path.join(path_buf.value, "CCP", "EVE", cacheFolderName, "cache")
+
+	elif sys.platform == "darwin" or os.name == "mac":
+		# slightly less untested. might still be wrong.
+		home = os.path.expanduser('~')
+		cacheFolderName = "c_program_files_ccp_eve_" + servername.lower()
+		cachepath = os.path.join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
+		actualroot = os.path.join(root, "Contents/Resources/transgaming/c_drive/Program Files/CCP/EVE")
+		if os.path.exists(actualroot):
+			root = actualroot
+
+	elif os.name == "posix":
+		import pwd
+
+		# Assuming a WINE install, we are now going to have to do
+		# some black magic to figure out where the cache folder is.
+
+		# get the name of the owner of this EVE folder. This is
+		# quite likely to be the user used in WINE as well.
+		stat_info = os.stat(root)
+		user = pwd.getpwuid(stat_info.st_uid).pw_name
+
+		# get the filesystem root for WINE
+		x = root.find(".wine/drive_")
+		if x == -1:
+			raise RuntimeError("Must specify cachepath manually on this platform for non-WINE installs.")
+		wineroot = root[:x+5]  # all drive_ folders be here
+
+		# now we can get the cache folder name (as produced by EVE
+		# from the install path by mangling separators and spaces)
+		cacheFolderName = root[x+12:].replace("/", "_").replace(" ", "_")
+		cacheFolderName += "_" + servername
+		cacheFolderName = cacheFolderName.lower()
+
+		# locate that cache folder. the names of the folders here
+		# depend on the locale of the Windows version used, so we
+		# cheat past that with a glob match.
+		for settingsroot in [
+			os.path.join(wineroot, "drive_c/users", user),
+			os.path.join(wineroot, "drive_c/windows/profile", user),
+		]:
+			if not os.path.exists(settingsroot):
+				continue
+
+			for cachepath in glob.iglob(os.path.join(settingsroot, "*/*/CCP/EVE/" + cacheFolderName, "cache")):
+				# this should only ever give one folder.
+				break
+			else:
+				# no cache folder found? user must have a really
+				# freakin' bizarre install. screw that!
+				continue
+
+			# cache folder found, no need to continue.
+			break
+
+	else:
+		return (None, None)
+
+	return (root, cachepath)
+
+
 
 class CacheMgr:
 	"""Interface to an EVE Installation's cache and bulkdata."""
@@ -66,6 +140,8 @@ class CacheMgr:
 		if serverip == "87.237.38.200":
 			servername = "Tranquility"
 
+		#---------------------
+
 		if root is None:
 			# I -was- going to put auto path discovery here but EVE's install
 			# folder(s) can be pretty elusive :)
@@ -73,106 +149,75 @@ class CacheMgr:
 
 		root = os.path.abspath(root)
 
-		# now the cache could be either in EVE's own install folder (LUA:OFF),
-		# or in Local Appdata....
+		candidates = []
+		guess = cachepath is None
+		if guess:
+			# auto-discovery of cachepath. try a few places...
+			guess = True
+			candidates = [
+				(root, os.path.join(root, "cache")),
+				_findcachepath(root, servername),
+			]
+		else:
+			# manually specified cachepath! only look there.
+			candidates.append((root, cachepath))
 
-		if cachepath is None:
-			cachepath = os.path.join(root, "cache")
+		#---------------------
+
+		self.machoVersion = -1
+
+		cachenotfound = machonotfound = False
+
+		for root, cachepath in candidates:
+			if root is None:
+				continue
+
 			if not os.path.exists(cachepath):
+				cachenotfound = True
+				continue
 
-				# the cache folder is not in install folder. this means it's
-				# in Application Data, however where that one is located varies
-				# per platform, windows version and locale.
+			machopath = os.path.join(cachepath, "MachoNet", serverip)
 
-				if os.name == "nt":
-					cacheFolderName = root.lower().replace(":", "").replace("\\", "_").replace(" ", "_")
-					cacheFolderName += "_"+servername.lower()
-
-					from ctypes import wintypes, windll, c_int
-					CSIDL_LOCAL_APPDATA = 28
-					path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
-					result = windll.shell32.SHGetFolderPathW(0, CSIDL_LOCAL_APPDATA, 0, 0, path_buf)
-					if result:
-						raise RuntimeError("SHGetFolderPath failed, error code 0x%08x" % result)
-					cachepath = os.path.join(path_buf.value, "CCP", "EVE", cacheFolderName, "cache")
-
-				elif sys.platform == "darwin" or os.name == "mac":
- 					# slightly less untested. might still be wrong.
- 					home = os.path.expanduser('~')
- 					cacheFolderName = "c_program_files_ccp_eve_" + servername.lower()
-					cachepath = os.path.join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
-					root = os.path.join(root, "Contents/Resources/transgaming/c_drive/Program Files/CCP/EVE")
-
-				elif os.name == "posix":
-					import pwd
-
-					# Assuming a WINE install, we are now going to have to do
-					# some black magic to figure out where the cache folder is.
-
-					# get the name of the owner of this EVE folder. This is
-					# quite likely to be the user used in WINE as well.
-					stat_info = os.stat(root)
-					user = pwd.getpwuid(stat_info.st_uid).pw_name
-
-					# get the filesystem root for WINE
-					x = root.find(".wine/drive_")
-					if x == -1:
-						raise RuntimeError("Must specify cachepath manually on this platform for non-WINE installs.")
-					wineroot = root[:x+5]  # all drive_ folders be here
-
-					# now we can get the cache folder name (as produced by EVE
-					# from the install path by mangling separators and spaces)
-					cacheFolderName = root[x+12:].replace("/", "_").replace(" ", "_")
-					cacheFolderName += "_" + servername
-					cacheFolderName = cacheFolderName.lower()
-
-					# locate that cache folder. the names of the folders here
-					# depend on the locale of the Windows version used, so we
-					# cheat past that with a glob match.
-					for settingsroot in [
-						os.path.join(wineroot, "drive_c/users", user),
-						os.path.join(wineroot, "drive_c/windows/profile", user),
-					]:
-						if not os.path.exists(settingsroot):
-							continue
-
-						for cachepath in glob.iglob(os.path.join(settingsroot, "*/*/CCP/EVE/" + cacheFolderName, "cache")):
-							# this should only ever give one folder.
-							break
-						else:
-							# no cache folder found? user must have a really
-							# freakin' bizarre install. screw that!
-							continue
-
-						# cache folder found, no need to continue.
-						break
-
+			if machoversion > -1:
+				# machoversion was specified, so look for just that.
+				machocachepath = os.path.join(machopath, str(machoversion))
+				if os.path.exists(machocachepath):
+					protocol = machoversion
 				else:
-					raise RuntimeError("Must specify cachepath manually on this platform if the cache folder is not in EVE root")
+					machonotfound = True
+					continue
+			else:
+				# machoversion not specified, find highest.
+				protocol = -1
 
-		if not os.path.exists(cachepath):
-			raise RuntimeError("Could not determine EVE cache folder location.")
+				for dirName in glob.glob(os.path.join(machopath, "*")):
+					candidate = os.path.basename(dirName)
+					if candidate.isdigit():
+						protocol = max(protocol, int(candidate))
 
-		machoCachePath = os.path.join(cachepath, "MachoNet", serverip)
-		if machoversion == -1:
-			# find highest macho version...
-			for dirName in glob.glob(os.path.join(machoCachePath, "*")):
-				try:
-					machoversion = max(machoversion, int(os.path.basename(dirName)))
-				except ValueError:
-					pass
-				except TypeError:
-					pass
+				if protocol == -1:
+					machonotfound = True
 
-		if machoversion == -1:
-			raise RuntimeError("Could not determine machoNet version from cache folder %s" % machoCachePath)
+			if protocol > self.machoVersion:
+				self.root = root
+				self.bulkdatapath = os.path.join(root, "bulkdata")
+				self.cachepath = cachepath
+				self.machoVersion = protocol
+				self.machocachepath = os.path.join(machopath, str(protocol))
 
-		self.machoVersion = machoversion
 
-		self.root = root
-		self.cachepath = cachepath
-		self.machocachepath = os.path.join(machoCachePath, str(machoversion))
-		self.bulkdatapath = os.path.join(root, "bulkdata")
+		if self.machoVersion == -1:
+			if machonotfound:
+				if machoversion == -1:
+					raise RuntimeError("Could not determine MachoNet protocol version.")
+				else:
+					raise RuntimeError("Specified protocol version (%d) not found in MachoNet cache." % machoversion)
+
+			if cachenotfound:
+				if guess:
+					raise RuntimeError("Could not determine EVE cache folder location.")
+				else:
+					raise RuntimeError("Specified cache folder does not exist: '%s'" % cachepath)
 
 
 	def LoadCacheFolder(self, name, filter="*.cache"):

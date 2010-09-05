@@ -75,7 +75,8 @@ def _findcachepath(root, servername):
 		# get the filesystem root for WINE
 		x = root.find(".wine/drive_")
 		if x == -1:
-			raise RuntimeError("Must specify cachepath manually on this platform for non-WINE installs.")
+			return (None, None)
+
 		wineroot = root[:x+5]  # all drive_ folders be here
 
 		# now we can get the cache folder name (as produced by EVE

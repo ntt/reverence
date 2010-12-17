@@ -524,7 +524,7 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 		//---------------------------------------------------------------------
 
 		case TYPE_STRINGR:
-			if (length < 1 || length > PyList_GET_SIZE(string_table))
+			if (length < 1 || length >= PyList_GET_SIZE(string_table))
 			{
 				if(PyList_GET_SIZE(string_table))
 					PyErr_Format(PyExc_RuntimeError, "Invalid string table index %d", (int)length);
@@ -606,7 +606,7 @@ tuple:
 			container->type = TYPE_TUPLE;
 			container->free = length;
 			container->index = 0;
-			CHECK_SHARED(obj);
+			CHECK_SHARED(container->obj);
 			continue;
 
 		case TYPE_LIST0:

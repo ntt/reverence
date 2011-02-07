@@ -1,6 +1,6 @@
 """Container classes for DBRow/DBRowset
 
-Copyright (c) 2003-2010 Jamie "Entity" van den Berge <jamie@hlekkir.com>
+Copyright (c) 2003-2011 Jamie "Entity" van den Berge <jamie@hlekkir.com>
 
 This code is free software; you can redistribute it and/or modify
 it under the terms of the BSD license (see the file LICENSE.txt
@@ -106,6 +106,16 @@ class CIndexedRowset(dict):
 		self.columnName = columnName
 
 
+class CFilterRowset(dict):
+	__guid__ = "dbutil.CFilterRowset"
+
+	def __setstate__(self, data):
+		self.__dict__.update(data)  # header and columnName
+
+	def __getstate__(self):
+		return {"header": self.header, "columnName": self.columnName}
+
+
 class CRowset(list):
 	__guid__ = "dbutil.CRowset"
 	__passbyvalue__	 = 1
@@ -162,5 +172,6 @@ class CRowset(list):
 
 		return  fr
 
-__all__ = ["RowDict", "RowList", "CIndexedRowset", "CRowset"]
+
+__all__ = ["RowDict", "RowList", "CIndexedRowset", "CRowset", "CFilterRowset"]
 

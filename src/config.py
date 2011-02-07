@@ -4,7 +4,7 @@
 - provides container classes for record and row data.
 - provides interface to the database tables
 
-Copyright (c) 2003-2010 Jamie "Entity" van den Berge <jamie@hlekkir.com>
+Copyright (c) 2003-2011 Jamie "Entity" van den Berge <jamie@hlekkir.com>
 
 This code is free software; you can redistribute it and/or modify
 it under the terms of the BSD license (see the file LICENSE.txt
@@ -382,7 +382,7 @@ def _loader(attrName):
 	# Creates a closure used as a method in Config class (to be decorated with
 	# _memoize) that loads a specific bulkdata table.
 	def method(self):
-		ver, tableName, storageClass, rowClass, primaryKey = self.__tables__[attrName]
+		ver, rem, tableName, storageClass, rowClass, primaryKey = self.__tables__[attrName]
 #		if self.cache.machoVersion < ver:
 #			raise RuntimeError("%s table requires machoNet version %d, cache is version %d." % (tableName, ver, self.cache.machoVersion))
 		return self._loadbulkdata(tableName=(tableName or attrName), storageClass=storageClass, rowClass=rowClass, primaryKey=primaryKey)
@@ -393,8 +393,8 @@ def _loader(attrName):
 class _tablemgr(type):
 	# Creates decorated methods in the Config class that handle loading of
 	# bulkdata tables on accessing the attributes those methods are bound as.
-	# Note: tables that require non-standard handling (e.g. ramtypematerials)
-	# will need methods for that (decorated with @_memoize) in Config class.
+	# Note: tables that require non-standard handling will need methods for
+	# that (decorated with @_memoize) in Config class.
 
 	def __init__(cls, name, bases, dict):
 		type.__init__(cls, name, bases, dict)
@@ -514,59 +514,60 @@ class Config(object):
 	#-------------------------------------------------------------------------------------------------------------------
 	# BulkData Table Definitions.
 	# ver            - minimum machoNet version required to load this table with prime() method
+	# del            - starting from this machoNet version the table no longer exists
 	# cfg attrib     - name the table is accessed with in cfg.* (e.g. cfg.invtypes)
 	# bulkdata name  - name of the bulkdata in the cache file if not same as cfg attrib, else None.
 	# storage class  - container class for the table data. can be string to generate FilterRowset from named table.
 	# row class      - the class used to wrap rows with when they are requested.
 	# primary key    - primary key
 	__tables__ = {
-		# cfg attrib                 : (ver, bulkdata name     , storage class       , row class         , primary key)
-		"evegraphics"                : (  0, "graphics"        , Recordset           , EveGraphics       , "graphicID"),
-		"invcategories"              : (  0, "categories"      , Recordset           , InvCategory       , "categoryID"),
-		"invgroups"                  : (  0, "groups"          , Recordset           , InvGroup          , "groupID"),
-		"groupsByCategories"         : (  0, None              , "invgroups"         , None              , "categoryID"),
-		"invtypes"                   : (  0, "types"           , Recordset           , InvType           , "typeID"),
-		"typesByGroups"              : (  0, None              , "invtypes"          , None              , "groupID"),
-		"typesByMarketGroups"        : (  0, None              , "invtypes"          , None              , "marketGroupID"),
-		"invmetagroups"              : (  0, "metagroups"      , Recordset           , InvMetaGroup      , "metaGroupID"),
-		"invmetatypes"               : (  0, "metatypes"       , util.FilterRowset   , None              , "parentTypeID"),  # custom loader!
-		"invmetatypesByTypeID"       : (  0, None              , None                , None              , None),  # custom loader!
-		"invbptypes"                 : (  0, "bptypes"         , Recordset           , util.Row          , "blueprintTypeID"),
-		"invreactiontypes"           : (  0, "invtypereactions", util.FilterRowset   , None              , "reactionTypeID"),
-		"shiptypes"                  : (  0, None              , util.IndexRowset    , util.Row          , "shipTypeID"),
-		"dgmattribs"                 : (  0, None              , ItemsRecordset      , DgmAttribute      , "attributeID"),
-		"dgmeffects"                 : (  0, None              , ItemsRecordset      , DgmEffect         , "effectID"),
-		"dgmtypeattribs"             : (  0, None              , util.IndexedRowLists, util.Row          , ('typeID',)),
-		"dgmtypeeffects"             : (  0, None              , util.IndexedRowLists, util.Row          , ('typeID',)),
-		"eveunits"                   : (  0, "units"           , Recordset           , util.Row          , "unitID"),
-		"eveowners"                  : (  0, "owners"          , Recordset           , EveOwners         , "ownerID"),  # custom loader!
-		"evelocations"               : (  0, "locations"       , Recordset           , EveLocations      , "locationID"),  # custom loader!
-		"ramaltypes"                 : (  0, None              , Recordset           , util.Row          , "assemblyLineTypeID"),
-		"ramactivities"              : (  0, None              , Recordset           , RamActivity       , "activityID"),
-		"ramcompletedstatuses"       : (  0, None              , Recordset           , RamCompletedStatus, "completedStatusID"),
-		"ramaltypesdetailpercategory": (  0, None              , util.FilterRowset   , None              , "assemblyLineTypeID"),
-		"ramaltypesdetailpergroup"   : (  0, None              , util.FilterRowset   , None              , "assemblyLineTypeID"),
-		"billtypes"                  : (  0, None              , Recordset           , Billtype          , 'billTypeID'),
-		"certificates"               : (  0, None              , Recordset           , Certificate       , "certificateID"),
-		"certificaterelationships"   : (  0, None              , Recordset           , util.Row          , "relationshipID"),
-		"corptickernames"            : (  0, "tickernames"     , Recordset           , CrpTickerNames    , "corporationID"),
-		"allianceshortnames"         : (  0, None              , Recordset           , AllShortNames     , "allianceID"),
-		"mapcelestialdescriptions"   : (  0, None              , Recordset           , MapCelestialDescription, "celestialID"),
-		"locationwormholeclasses"    : (  0, None              , Recordset           , util.Row          , "locationID"),
-		"invcontrabandTypesByFaction": (  0, None              , dict                , None              , None),  # custom loader!
-		"invcontrabandTypesByType"   : (  0, None              , dict                , None              , None),  # custom loader!
-		"locationscenes"             : (242, None              , Recordset           , util.Row          , 'locationID'),
-		"ownericons"                 : (242, None              , Recordset           , util.Row          , 'ownerID'),
-		"icons"                      : (242, None              , Recordset           , util.Row          , 'iconID'),
-		"sounds"                     : (242, None              , Recordset           , util.Row          , 'soundID'),
-		"schematics"                 : (242, None              , Recordset           , Schematic         , 'schematicID'),
-		"schematicstypemap"          : (242, None              , util.FilterRowset   , None              , 'schematicID'),  # custom loader!
-		"schematicsByType"           : (242, None              , util.FilterRowset   , None              , 'typeID'),  # custom loader!
-		"schematicspinmap"           : (242, None              , util.FilterRowset   , None              , 'schematicID'),  # custom loader!
-		"schematicsByPin"            : (242, None              , util.FilterRowset   , None              , 'pinTypeID'),  # custom loader!
-		"ramtyperequirements"        : (242, None              , dict                , None              , ('typeID', 'activityID')),
-		"ramtypematerials"           : (242, None              , dict                , None              , 'typeID'),
-#		"planetattributes"           : (242, None              , None                , None              , None),  # N/A
+		# cfg attrib                 : (ver, del, bulkdata name     , storage class       , row class         , primary key)
+		"evegraphics"                : (  0,   0, "graphics"        , Recordset           , EveGraphics       , "graphicID"),
+		"invcategories"              : (  0,   0, "categories"      , Recordset           , InvCategory       , "categoryID"),
+		"invgroups"                  : (  0,   0, "groups"          , Recordset           , InvGroup          , "groupID"),
+		"groupsByCategories"         : (  0,   0, None              , "invgroups"         , None              , "categoryID"),
+		"invtypes"                   : (  0,   0, "types"           , Recordset           , InvType           , "typeID"),
+		"typesByGroups"              : (  0,   0, None              , "invtypes"          , None              , "groupID"),
+		"typesByMarketGroups"        : (  0,   0, None              , "invtypes"          , None              , "marketGroupID"),
+		"invmetagroups"              : (  0,   0, "metagroups"      , Recordset           , InvMetaGroup      , "metaGroupID"),
+		"invmetatypes"               : (  0,   0, "metatypes"       , util.FilterRowset   , None              , "parentTypeID"),  # custom loader!
+		"invmetatypesByTypeID"       : (  0,   0, None              , None                , None              , None),  # custom loader!
+		"invbptypes"                 : (  0,   0, "bptypes"         , Recordset           , util.Row          , "blueprintTypeID"),
+		"invreactiontypes"           : (  0,   0, "invtypereactions", util.FilterRowset   , None              , "reactionTypeID"),
+		"shiptypes"                  : (  0,   0, None              , util.IndexRowset    , util.Row          , "shipTypeID"),
+		"dgmattribs"                 : (  0,   0, None              , ItemsRecordset      , DgmAttribute      , "attributeID"),
+		"dgmeffects"                 : (  0,   0, None              , ItemsRecordset      , DgmEffect         , "effectID"),
+		"dgmtypeattribs"             : (  0,   0, None              , util.IndexedRowLists, util.Row          , ('typeID',)),
+		"dgmtypeeffects"             : (  0,   0, None              , util.IndexedRowLists, util.Row          , ('typeID',)),
+		"eveunits"                   : (  0,   0, "units"           , Recordset           , util.Row          , "unitID"),
+		"eveowners"                  : (  0,   0, "owners"          , Recordset           , EveOwners         , "ownerID"),  # custom loader!
+		"evelocations"               : (  0,   0, "locations"       , Recordset           , EveLocations      , "locationID"),  # custom loader!
+		"ramaltypes"                 : (  0,   0, None              , Recordset           , util.Row          , "assemblyLineTypeID"),
+		"ramactivities"              : (  0,   0, None              , Recordset           , RamActivity       , "activityID"),
+		"ramcompletedstatuses"       : (  0,   0, None              , Recordset           , RamCompletedStatus, "completedStatusID"),
+		"ramaltypesdetailpercategory": (  0,   0, None              , util.FilterRowset   , None              , "assemblyLineTypeID"),
+		"ramaltypesdetailpergroup"   : (  0,   0, None              , util.FilterRowset   , None              , "assemblyLineTypeID"),
+		"billtypes"                  : (  0,   0, None              , Recordset           , Billtype          , 'billTypeID'),
+		"certificates"               : (  0,   0, None              , Recordset           , Certificate       , "certificateID"),
+		"certificaterelationships"   : (  0,   0, None              , Recordset           , util.Row          , "relationshipID"),
+		"corptickernames"            : (  0,   0, "tickernames"     , Recordset           , CrpTickerNames    , "corporationID"),
+		"allianceshortnames"         : (  0,   0, None              , Recordset           , AllShortNames     , "allianceID"),
+		"mapcelestialdescriptions"   : (  0,   0, None              , Recordset           , MapCelestialDescription, "celestialID"),
+		"locationwormholeclasses"    : (  0,   0, None              , Recordset           , util.Row          , "locationID"),
+		"invcontrabandTypesByFaction": (  0,   0, None              , dict                , None              , None),  # custom loader!
+		"invcontrabandTypesByType"   : (  0,   0, None              , dict                , None              , None),  # custom loader!
+		"locationscenes"             : (242,   0, None              , Recordset           , util.Row          , 'locationID'),
+		"ownericons"                 : (242,   0, None              , Recordset           , util.Row          , 'ownerID'),
+		"icons"                      : (242,   0, None              , Recordset           , util.Row          , 'iconID'),
+		"sounds"                     : (242,   0, None              , Recordset           , util.Row          , 'soundID'),
+		"schematics"                 : (242,   0, None              , Recordset           , Schematic         , 'schematicID'),
+		"schematicstypemap"          : (242,   0, None              , util.FilterRowset   , None              , 'schematicID'),  # custom loader!
+		"schematicsByType"           : (242,   0, None              , util.FilterRowset   , None              , 'typeID'),  # custom loader!
+		"schematicspinmap"           : (242,   0, None              , util.FilterRowset   , None              , 'schematicID'),  # custom loader!
+		"schematicsByPin"            : (242,   0, None              , util.FilterRowset   , None              , 'pinTypeID'),  # custom loader!
+		"ramtyperequirements"        : (242,   0, None              , dict                , None              , ('typeID', 'activityID')),
+		"ramtypematerials"           : (242, 254, None              , dict                , None              , 'typeID'),
+#		"planetattributes"           : (242,   0, None              , None                , None              , None),  # N/A
 	}
 
 
@@ -684,11 +685,12 @@ class Config(object):
 		# Only tables that are available for this instance's particular
 		# machoNet version will be in this set, and are the only tables loaded
 		# when prime() is called.
-		self.tables = frozenset( \
-			(attrName for attrName in dir(self.__class__) \
+		self.tables = frozenset(( \
+			attrName for attrName in dir(self.__class__) \
 			if isinstance(getattr(self.__class__, attrName), _memoize) \
-			and protocol >= self.__tables__[attrName][0]) \
-		)
+			and protocol >= self.__tables__[attrName][0] \
+			and protocol < (self.__tables__[attrName][1] or 2147483647) \
+		))
 		self._attrCache = {}
 
 

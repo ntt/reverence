@@ -179,6 +179,7 @@ def _readstringstable():
 
 def _find_global(module, name):
 	# locates a global. used by marshal.Load and integrated unpickler
+	print "GLOBAL", module, name
 	try:
 		m = __import__(module, globals(), locals(), (), -1)
 	except ImportError:
@@ -190,8 +191,8 @@ def _find_global(module, name):
 		raise RuntimeError("Unable to locate object: " + module + "." + name + " (not in module)")
 
 
-def _debug(text):
-	print >>sys.stderr, text
+def _debug(*args):
+	print >>sys.stderr, args[0].Keys(), args
 
 
 # __str__ function for DBRow objects. This is done in python because it would

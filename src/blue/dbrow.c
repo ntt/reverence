@@ -295,6 +295,7 @@ rd_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	self->rd_num_objects = 0;
 	self->rd_header = NULL;
 	self->rd_unpacked_size = 0;
+	self->rd_properties = NULL;
 
 	// fill the descriptors
 	for(i=0; i<self->ob_size; i++)
@@ -442,6 +443,7 @@ rd_dealloc(PyDBRowDescriptorObject *self)
 
 	Py_XDECREF(self->rd_header);
 	Py_XDECREF(self->rd_initarg);
+	Py_XDECREF(self->rd_properties);
 
 	self->rd_header = self->rd_initarg = NULL;
 	self->ob_type->tp_free((PyObject *)self);
@@ -469,6 +471,51 @@ rd_getattr(PyDBRowDescriptorObject *self, PyObject *key)
 	return PyObject_GenericGetAttr((PyObject *)self, key);
 }
 
+
+static PyObject *
+rd_setstate(PyDBRowDescriptorObject *self, PyObject *state)
+{
+	// this method doesn't "set state" as expected, but rather adds property
+	// functions that will be called if the relevant attribute is requested
+	// of a DBRow using this descriptor.
+
+	int i;
+	PyObject *item;
+
+	if(self->rd_properties)
+	{
+		PyErr_SetString(PyExc_RuntimeError, "DBRowDescriptor.__setstate__ may only be called once");
+		return NULL;
+	}
+
+	if(!PyList_Check(state))
+	{
+		PyErr_SetString(PyExc_TypeError, "DBRowDescriptor.__setstate__ first arg must be a list");
+		return NULL;
+	}
+
+	// verify state contents
+
+	self->rd_prop_size = PyList_GET_SIZE(state);
+	for(i=0; i<self->rd_prop_size; i++)
+	{
+		item = PyList_GET_ITEM(state, i);
+		if(PyTuple_Check(item) && PyTuple_GET_SIZE(item) == 2)
+			if(PyString_Check(PyTuple_GET_ITEM(item, 0)) && PyCallable_Check(PyTuple_GET_ITEM(item, 1)))
+				continue;
+
+		PyErr_SetString(PyExc_TypeError, "expected a list of tuples -> (string, callable)");
+		return NULL;
+	}
+
+	self->rd_properties = state;
+	Py_INCREF(self->rd_properties);
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
+
 static PyObject *
 rd_Keys(PyDBRowDescriptorObject *self)
 {
@@ -476,11 +523,14 @@ rd_Keys(PyDBRowDescriptorObject *self)
 	{
 		int i;
 
-		if(!(self->rd_header = PyList_New(self->ob_size)))
+		if(!(self->rd_header = PyList_New(self->ob_size+self->rd_prop_size)))
 			return NULL;
 
 		for(i=0; i < self->ob_size; i++)
 			PyList_SET_ITEM(self->rd_header, i, PyString_FromString(self->rd_cd[i].cd_name));
+
+		for(i=0; i < self->rd_prop_size; i++)
+			PyList_SET_ITEM(self->rd_header, i+self->ob_size, PyTuple_GET_ITEM(PyList_GET_ITEM(self->rd_properties, i), 0));
 	}
 
 	Py_INCREF(self->rd_header);
@@ -492,6 +542,7 @@ rd_Keys(PyDBRowDescriptorObject *self)
 static struct PyMethodDef rd_methods[] = {
 	{"Keys", (PyCFunction)rd_Keys, METH_NOARGS, NULL},
 	{"__reduce_ex__", (PyCFunction)rd_reduce_ex, METH_O, NULL},
+	{"__setstate__", (PyCFunction)rd_setstate, METH_O, NULL},
 	{NULL,	 NULL}		/* sentinel */
 };
 
@@ -756,6 +807,9 @@ dbrow_dealloc(PyDBRowObject *self)
 int
 dbrow_setattr(PyDBRowObject *self, PyObject *name, PyObject *value)
 {
+	int i;
+	PyObject *item;
+
 	if(PyString_Check(name))
 	{
 		char *attr = PyString_AsString(name);
@@ -763,8 +817,20 @@ dbrow_setattr(PyDBRowObject *self, PyObject *name, PyObject *value)
 
 		if(cd)
 			return setToCD(self, cd, value);
-	}
 
+		if(self->dbrow_header->rd_properties)
+		{
+			for(i=0; i<self->dbrow_header->rd_prop_size; i++)
+			{
+				item = PyList_GET_ITEM(self->dbrow_header->rd_properties, i);
+				if(!strcmp(attr, PyString_AS_STRING(PyTuple_GET_ITEM(item, 0))))
+				{
+					PyErr_SetString(PyExc_AttributeError, "read only attribute");
+					return -1;
+				}
+			}
+		}
+	}
 	return PyObject_GenericSetAttr((PyObject *)self, name, value);
 }
 
@@ -779,6 +845,7 @@ dbrow_getattr(PyDBRowObject *self, PyObject *name)
 		int i;
 		const char *attr = PyString_AsString(name);
 		ColumnDescriptor *cdi;
+		PyObject *item;
 
 		if(!strcmp("__header__", attr))
 		{
@@ -806,14 +873,31 @@ dbrow_getattr(PyDBRowObject *self, PyObject *name)
 				break;
 			}
 		}
+
+		// see if we have properties
+		if(!cd && self->dbrow_header->rd_properties)
+		{
+			for(i=0; i<self->dbrow_header->rd_prop_size; i++)
+			{
+				item = PyList_GET_ITEM(self->dbrow_header->rd_properties, i);
+				if(!strcmp(attr, PyString_AS_STRING(PyTuple_GET_ITEM(item, 0))))
+				{
+					return PyObject_CallFunction(PyTuple_GET_ITEM(item, 1), "O", self);
+				}
+			}
+		}
 	}
 	else if(PyInt_Check(name))
 	{
 		int i = PyInt_AS_LONG(name);
-		if(i < self->dbrow_header->ob_size)
+		if(i >= 0 && i < self->dbrow_header->ob_size)
 			cd = &self->dbrow_header->rd_cd[i];
 		else
 		{
+			i -= self->dbrow_header->ob_size;
+			if(i >= 0 && i < self->dbrow_header->rd_prop_size)
+				return PyObject_CallFunction(PyTuple_GET_ITEM(PyList_GET_ITEM(self->dbrow_header->rd_properties, i), 1), "O", self);
+
 			PyErr_SetString(PyExc_IndexError, "Index out of range");
 			return NULL;
 		}
@@ -848,27 +932,38 @@ dbrow_obj_length(PyDBRowObject *self)
 }
 
 static PyObject *
-dbrow_sq_item(PyDBRowObject *self, int ix)
+dbrow_sq_item(PyDBRowObject *self, int i)
 {
-	if(ix < 0 || ix >= self->dbrow_header->ob_size)
+	if(i >= 0 && i < self->dbrow_header->ob_size)
+		// see if index refers to normal column
+		return getFromCD(self, &self->dbrow_header->rd_cd[i]);
+	else
 	{
-		PyErr_SetString(PyExc_IndexError, "Index out of range");
-		return NULL;
+		// see if index refers to a property column
+		i -= self->dbrow_header->ob_size;
+		if(i >= 0 && i < self->dbrow_header->rd_prop_size)
+			return PyObject_CallFunction(PyTuple_GET_ITEM(PyList_GET_ITEM(self->dbrow_header->rd_properties, i), 1), "O", self);
 	}
 
-	return getFromCD(self, &self->dbrow_header->rd_cd[ix]);
+	PyErr_SetString(PyExc_IndexError, "Index out of range");
+	return NULL;
 }
 
 static int
-dbrow_sq_ass_item(PyDBRowObject *self, Py_ssize_t ix, PyObject *obj)
+dbrow_sq_ass_item(PyDBRowObject *self, Py_ssize_t i, PyObject *obj)
 {
-	if(ix < 0 || ix >= self->dbrow_header->ob_size)
+	if(i >= 0 && i < self->dbrow_header->ob_size)
+		return setToCD(self, &self->dbrow_header->rd_cd[i], obj);
+
+	i -= self->dbrow_header->ob_size;
+	if(i >= 0 && i < self->dbrow_header->rd_prop_size)
 	{
-		PyErr_SetString(PyExc_IndexError, "Index out of range");
+		PyErr_SetString(PyExc_AttributeError, "read only attribute");
 		return -1;
 	}
 
-	return setToCD(self, &self->dbrow_header->rd_cd[ix], obj);
+	PyErr_SetString(PyExc_IndexError, "Index out of range");
+	return -1;
 }
 
 

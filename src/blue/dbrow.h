@@ -73,7 +73,10 @@ typedef struct {
 	PyObject *rd_initarg;				// tuple of columns/types
 	PyObject *rd_header;				// List with header.
 
-	// ob_size will be the number of columns.
+	PyObject *rd_properties;			// List with properties or NULL
+	int rd_prop_size;					// number of properties
+
+	// ob_size will be the number of columns (not counting properties)
 	int rd_num_objects;					// number of non-scalar entries
 
 	int rd_unpacked_size;				// length of decoded RLE blurbs

@@ -16,12 +16,50 @@
 
 extern unsigned long adler32(unsigned long adler, const char *buf, unsigned int len);
 
-#define MARSHAL_DEBUG 1
+
+#define MARSHAL_DEBUG 0
 
 #define MAX_DEPTH 64  // max object hierarchy depth
 
 static PyObject *constants[255] = {NULL};
 static int needlength[255] = {0};
+
+static char *tokenname[255] = {"???"};
+
+
+#define TYPE_TUPLE     0x14  // 20: tuple, next byte is count*
+#define TYPE_LIST      0x15  // 21: list, next byte is count*
+#define TYPE_DICT      0x16  // 22: dict, next byte is count*
+#define TYPE_INSTANCE  0x17  // 23: class instance, name of the class follows (as string, probably)
+#define TYPE_BLUE      0x18  // 24: blue object.
+#define TYPE_CALLBACK  0x19  // 25: callback
+//#define TYPE_PICKLE    0x1a  // 26: (not used, old pickle method)
+#define TYPE_REF       0x1b  // 27: shared object reference
+#define TYPE_CHECKSUM  0x1c  // 28: checksum of rest of stream
+//#define TYPE_COMPRESS  0x1d  // 29: (not used)
+//#define TYPE_UNUSED    0x1e  // 30: (not used)
+#define TYPE_TRUE      0x1f  // 31: True
+#define TYPE_FALSE     0x20  // 32: False
+#define TYPE_PICKLER   0x21  // 33: standard pickle of undetermined size
+#define TYPE_REDUCE    0x22  // 34: reduce protocol
+#define TYPE_NEWOBJ    0x23  // 35: new style class object
+#define TYPE_TUPLE0    0x24  // 36: tuple, empty
+#define TYPE_TUPLE1    0x25  // 37: tuple, single element
+#define TYPE_LIST0     0x26  // 38: list, empty
+#define TYPE_LIST1     0x27  // 39: list, single element
+#define TYPE_UNICODE0  0x28  // 40: unicode string, empty
+#define TYPE_UNICODE1  0x29  // 41: unicode string, 1 character
+
+#define TYPE_DBROW     0x2a  // 42: database row (quite hard, custom data format)
+#define TYPE_STREAM    0x2b  // 43: embedded marshal stream
+#define TYPE_TUPLE2    0x2c  // 44: tuple, 2 elements
+#define TYPE_MARK      0x2d  // 45: marker (for the NEWOBJ/REDUCE iterators that follow them)
+#define TYPE_UTF8      0x2e  // 46: UTF8 unicode string, buffer size count follows*
+
+#define TYPE_LONG      0x2f  // 47: big int, byte count follows.
+
+#define SHARED_FLAG    0x40
+
 
 // module level objects
 PyObject *global_cache = NULL;
@@ -255,7 +293,6 @@ set_state(PyObject *obj, PyObject *state)
 {
 	PyObject *__setstate__, *__dict__;
 
-
 	if((__setstate__ = PyObject_GetAttr(obj, py__setstate__)))
 	{
 		// container has a __setstate__, invoke it!
@@ -272,7 +309,9 @@ set_state(PyObject *obj, PyObject *state)
 		// has a __dict__ to update instead.
 		PyErr_Clear();
 		if(!(__dict__ = PyObject_GetAttr(obj, py__dict__)))
+		{
 			return 0;
+		}
 
 		if(PyDict_Update(__dict__, state))
 		{
@@ -440,20 +479,21 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 			length = 0;
 
 
+#if MARSHAL_DEBUG
 //		if(shared)
-/*		{
+		{
 			char text[220];
 			int i;
 			for(i=0; i<ct_ix; i++)
 				printf("  ");
 
-			sprintf(text, "pos:%4d type:0x%02x shared:%d len:%4d map:[", s-stream, type, shared?1:0, length);
+			sprintf(text, "pos:%4d type:%s(0x%02x) shared:%d len:%4d map:[", s-stream, tokenname[type], type, shared?1:0, length);
 			printf(text);
 			for(i=0; i<shared_mapsize; i++)
 				printf("%d(%d),", shared_obj[i], shared_obj[i] ? ((PyObject *)(shared_obj[i]))->ob_refcnt : 0);
 			printf("]\r\n");
 		}
-*/
+#endif // MARSHAL_DEBUG
 
 		switch(type) {
 
@@ -723,6 +763,7 @@ tuple:
 			goto cleanup;
 		}
 
+#if MARSHAL_DEBUG
 /*
 if(obj && obj->ob_refcnt < 0)
 {
@@ -731,7 +772,7 @@ if(obj && obj->ob_refcnt < 0)
 	DEBUG(b);
 }
 */
-
+#endif // MARSHAL_DEBUG
 
 		while(1)
 		{
@@ -743,13 +784,14 @@ if(obj && obj->ob_refcnt < 0)
 			// - add the object to the current container in a container-
 			//   specific manner. note that ownership of the reference is to be
 			//   given to the container object.
-
 /*
+#ifdef DEBUG_LOAD
 		{
 			char text[220];
 			sprintf(text, "container ix:%d type:0x%02x free:%d index:%d", ct_ix, container->type, container->free, container->index);
 			DEBUG(text);
 		}
+#endif // DEBUG_LOAD
 */
 
 			switch(container->type) {
@@ -872,6 +914,7 @@ if(obj && obj->ob_refcnt < 0)
 				{
 					PyObject *callable, *args, *state;
 
+
 					if(!(args = PyTuple_GetItem(obj, 1)))
 						goto cleanup;
 					if(!(callable = PyTuple_GET_ITEM(obj, 0)))
@@ -885,6 +928,7 @@ if(obj && obj->ob_refcnt < 0)
 					if(PyTuple_GET_SIZE(obj) > 2)
 					{
 						state = PyTuple_GET_ITEM(obj, 2);
+
 						if(!set_state(container->obj, state))
 							goto cleanup;
 					}
@@ -892,6 +936,7 @@ if(obj && obj->ob_refcnt < 0)
 					Py_DECREF(obj);
 
 					LIST_ITERATOR;
+
 					break;
 				}
 
@@ -1148,6 +1193,51 @@ init_marshal(void)
 		goto fail;
 
 	PyModule_AddObject(m, "_stringtable", (PyObject*)string_table);
+
+
+#if MARSHAL_DEBUG
+	tokenname[TYPE_NONE] = "NONE";
+	tokenname[TYPE_GLOBAL] = "GLOBAL";
+	tokenname[TYPE_INT64] = "INT64";
+	tokenname[TYPE_INT32] = "INT32";
+	tokenname[TYPE_INT16] = "INT16";
+	tokenname[TYPE_INT8] = "INT8";
+	tokenname[TYPE_MINUSONE] = "MINUSONE";
+	tokenname[TYPE_ZERO] = "ZERO";
+	tokenname[TYPE_ONE] = "ONE";
+	tokenname[TYPE_FLOAT] = "FLOAT";
+	tokenname[TYPE_FLOAT0] = "FLOAT0";
+	tokenname[TYPE_STRINGL] = "STRINGL";
+	tokenname[TYPE_STRING0] = "STRING0";
+	tokenname[TYPE_STRING1] = "STRING1";
+	tokenname[TYPE_STRING] = "STRING";
+	tokenname[TYPE_STRINGR] = "STRINGR";
+	tokenname[TYPE_UNICODE] = "UNICODE";
+	tokenname[TYPE_BUFFER] = "BUFFER";
+	tokenname[TYPE_TUPLE] = "TUPLE";
+	tokenname[TYPE_LIST] = "LIST";
+	tokenname[TYPE_DICT] = "DICT";
+	tokenname[TYPE_INSTANCE] = "INSTANCE";
+	tokenname[TYPE_BLUE] = "BLUE";
+	tokenname[TYPE_CHECKSUM] = "CHECKSUM";
+	tokenname[TYPE_TRUE] = "TRUE";
+	tokenname[TYPE_FALSE] = "FALSE";
+	tokenname[TYPE_PICKLER] = "PICKLER";
+	tokenname[TYPE_REDUCE] = "REDUCE";
+	tokenname[TYPE_NEWOBJ] = "NEWOBJ";
+	tokenname[TYPE_TUPLE0] = "TUPLE0";
+	tokenname[TYPE_TUPLE1] = "TUPLE1";
+	tokenname[TYPE_LIST0] = "LIST0";
+	tokenname[TYPE_LIST1] = "LIST1";
+	tokenname[TYPE_UNICODE0] = "UNICODE0";
+	tokenname[TYPE_UNICODE1] = "UNICODE1";
+	tokenname[TYPE_DBROW] = "DBROW";
+	tokenname[TYPE_STREAM] = "STREAM";
+	tokenname[TYPE_TUPLE2] = "TUPLE2";
+	tokenname[TYPE_MARK] = "MARK";
+	tokenname[TYPE_UTF8] = "UTF8";
+	tokenname[TYPE_LONG] = "LONG";
+#endif // MARSHAL_DEBUG
 
 	return m;
 fail:

@@ -35,6 +35,24 @@ class KeyVal:
 		return "Anonymous KeyVal: %s" % self.__dict__
 
 
+def Singleton(dbrow):
+	# used as property getter by certain cache objects
+	if dbrow.quantity < 0:
+		return 1
+	else:
+		if 30000000 <= dbrow.locationID < 40000000:
+			return 1
+	return 0
+
+
+def StackSize(dbrow):
+	# used as property getter by certain cache objects
+	qty = dbrow.quantity
+	if qty < 0:
+		return 1
+	return qty
+
+
 class Row:
 	__guid__ = "util.Row"
 	__passbyvalue__ = 1

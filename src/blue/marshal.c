@@ -27,40 +27,6 @@ static int needlength[255] = {0};
 static char *tokenname[255] = {"???"};
 
 
-#define TYPE_TUPLE     0x14  // 20: tuple, next byte is count*
-#define TYPE_LIST      0x15  // 21: list, next byte is count*
-#define TYPE_DICT      0x16  // 22: dict, next byte is count*
-#define TYPE_INSTANCE  0x17  // 23: class instance, name of the class follows (as string, probably)
-#define TYPE_BLUE      0x18  // 24: blue object.
-#define TYPE_CALLBACK  0x19  // 25: callback
-//#define TYPE_PICKLE    0x1a  // 26: (not used, old pickle method)
-#define TYPE_REF       0x1b  // 27: shared object reference
-#define TYPE_CHECKSUM  0x1c  // 28: checksum of rest of stream
-//#define TYPE_COMPRESS  0x1d  // 29: (not used)
-//#define TYPE_UNUSED    0x1e  // 30: (not used)
-#define TYPE_TRUE      0x1f  // 31: True
-#define TYPE_FALSE     0x20  // 32: False
-#define TYPE_PICKLER   0x21  // 33: standard pickle of undetermined size
-#define TYPE_REDUCE    0x22  // 34: reduce protocol
-#define TYPE_NEWOBJ    0x23  // 35: new style class object
-#define TYPE_TUPLE0    0x24  // 36: tuple, empty
-#define TYPE_TUPLE1    0x25  // 37: tuple, single element
-#define TYPE_LIST0     0x26  // 38: list, empty
-#define TYPE_LIST1     0x27  // 39: list, single element
-#define TYPE_UNICODE0  0x28  // 40: unicode string, empty
-#define TYPE_UNICODE1  0x29  // 41: unicode string, 1 character
-
-#define TYPE_DBROW     0x2a  // 42: database row (quite hard, custom data format)
-#define TYPE_STREAM    0x2b  // 43: embedded marshal stream
-#define TYPE_TUPLE2    0x2c  // 44: tuple, 2 elements
-#define TYPE_MARK      0x2d  // 45: marker (for the NEWOBJ/REDUCE iterators that follow them)
-#define TYPE_UTF8      0x2e  // 46: UTF8 unicode string, buffer size count follows*
-
-#define TYPE_LONG      0x2f  // 47: big int, byte count follows.
-
-#define SHARED_FLAG    0x40
-
-
 // module level objects
 PyObject *global_cache = NULL;
 PyObject *find_global_func = NULL;

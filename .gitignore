@@ -5,3 +5,6 @@ dist/*
 MANIFEST
 test
 test/*
+build.py
+upload.py
+

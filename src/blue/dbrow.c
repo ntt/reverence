@@ -19,7 +19,7 @@
 
 static PyObject *blue, *py_dbrow_str;
 
-__inline static int rle_pack(char *in, int in_size, char *out, int *out_size)
+__inline static void rle_pack(char *in, int in_size, char *out, int *out_size)
 {
 	int nibble = 0;
 	int nibble_ix = 0;
@@ -74,8 +74,6 @@ __inline static int rle_pack(char *in, int in_size, char *out, int *out_size)
 	}
 
 	*out_size = out_ix;
-
-	return 1;
 }
 
 __inline static int rle_unpack(char *in, int in_size, char *out, int out_size)
@@ -292,10 +290,12 @@ rd_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 	self->rd_initarg = initarg;
 	Py_INCREF(self->rd_initarg);
 
+	// don't have to zero these as tp_alloc already does that, but w/e.
 	self->rd_num_objects = 0;
 	self->rd_header = NULL;
 	self->rd_unpacked_size = 0;
 	self->rd_properties = NULL;
+	self->rd_prop_size = 0;
 
 	// fill the descriptors
 	for(i=0; i<self->ob_size; i++)

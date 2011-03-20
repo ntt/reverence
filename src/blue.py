@@ -179,7 +179,6 @@ def _readstringstable():
 
 def _find_global(module, name):
 	# locates a global. used by marshal.Load and integrated unpickler
-	print "GLOBAL", module, name
 	try:
 		m = __import__(module, globals(), locals(), (), -1)
 	except ImportError:

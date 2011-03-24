@@ -21,10 +21,10 @@ extern unsigned long adler32(unsigned long adler, const char *buf, unsigned int 
 
 #define MAX_DEPTH 64  // max object hierarchy depth
 
-static PyObject *constants[255] = {NULL};
-static int needlength[255] = {0};
+static PyObject *constants[256] = {NULL};
+static int needlength[256] = {0};
 
-static char *tokenname[255] = {"???"};
+static char *tokenname[256] = {"???"};
 
 
 // module level objects

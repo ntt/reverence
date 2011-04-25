@@ -88,9 +88,9 @@ for groupID in sorted(cats, key=lambda id: cfg.invgroups.Get(id)):
 
 			if models[0].name[-2] != " ":
 				print "<tr><td>%d</td><td><b>" % last
-				print '<a href="showinfo:%d">%s</a>' % (models[0].typeID, models[0].name),
+				print '<a href="javascript:CCPEVE.showInfo(%d)">%s</a>' % (models[0].typeID, models[0].name),
 				if len(models)>1:
-					links = [('<a href="showinfo:%d">%s</a>' % (rec2.typeID, rec2.name.rsplit(" ", 1)[1])) for rec2 in models[1:]]
+					links = [('<a href="javascript:CCPEVE.showInfo(%d)">%s</a>' % (rec2.typeID, rec2.name.rsplit(" ", 1)[1])) for rec2 in models[1:]]
 					print " / " + " / ".join(links)
 
 				print "</b><br>"

@@ -35,27 +35,20 @@ print "<html><body>"
 print "<H1><u>Entity's Nifty Implant Lookup Page</u></H1><br>"
 
 def mangle(s, c):
-	return s\
-	.replace("0", "%")\
-	.replace("1", "%")\
-	.replace("2", "%")\
-	.replace("3", "%")\
-	.replace("4", "%")\
-	.replace("5", "%")\
-	.replace("6", "%")\
-	.replace("7", "%")\
-	.replace("8", "%")\
-	.replace("9", "%")\
-	.replace("%%", "%")\
-	.replace("%%", "%")\
-	.replace("%", c)
-
+	for d in "0123456789":
+		s = s.replace(d+".", "%").replace(d, "%")
+	while True:
+		t = s.replace("%%", "%")
+		if t == s:
+			return s.replace("%", c)
+		s = t
 
 def sortkey(s):
-	t = mangle(s[1], "%04d")
-	if "%" in t:
-		return (s[0], t % int(filter("0123456789".__contains__, s[1])))
-	return s
+	try:
+		return (s[0], mangle(s[1], ""), float(filter("0123456789.".__contains__, s[1]).strip(".")))
+	except ValueError:
+		return s
+
 
 def desc(rec, fltr=False):
 	d = rec.description
@@ -88,7 +81,6 @@ for groupID in sorted(cats, key=lambda id: cfg.invgroups.Get(id)):
 
 	all = sorted(cats[groupID], key=sortkey)
 	for slot, name, rec in all + [all[0]]:
-
 		prefix = mangle(name, "")
 
 		if lastPrefix and ((lastPrefix != prefix) or (last != -1 and last != slot)):

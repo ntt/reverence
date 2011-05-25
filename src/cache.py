@@ -229,8 +229,13 @@ class CacheMgr:
 		else:
 			name = os.path.join(self.machocachepath, name)
 		for filename in glob.glob(os.path.join(name, filter)):
-			what, obj = blue.marshal.Load(open(filename,"rb").read())
-			crap[what] = obj
+			try:
+				what, obj = blue.marshal.Load(open(filename,"rb").read())
+				crap[what] = obj
+			except RuntimeError:  # todo: make proper UnmarshalError exception class
+				# ignore files that cannot be decoded.
+				pass
+
 		return crap
 
 

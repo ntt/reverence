@@ -357,6 +357,7 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 
 	int type = -1;   // current object type
 	int shared = -1; // indicates whether current object is shared
+	int i;
 
 	char *error = "NO ERROR SPECIFIED";
 	char errortext[256];
@@ -364,7 +365,7 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 	Py_ssize_t length = 0;  // generic length value.
 
 	int shared_mapsize;
-	int shared_count = 1;  // shared object index counter
+	int shared_count;  // shared object index counter
 	int *shared_map;  // points to shared object mapping at end of stream
 	PyObject **shared_obj = NULL;  // holds the shared objects
 
@@ -408,6 +409,16 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 
 	// ok, we got the map data right here...
 	shared_map = (int32_t *)&stream[size - shared_mapsize * 4];
+
+	// Security Check #2: assert all map entries are between 1 and shared_mapsize
+	for(i=0; i<shared_mapsize; i++)
+	{
+		if( (shared_map[i] > shared_mapsize) || (shared_map[i] < 1) )
+		{
+			PyErr_SetString(PyExc_RuntimeError, "Bogus map data in marshal stream");
+			goto cleanup;
+		}
+	}
 
 	// the start of which is incidentally also the end of the object data.
 	end = (char *)shared_map;

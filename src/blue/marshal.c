@@ -885,11 +885,9 @@ if(obj && obj->ob_refcnt < 0)
 				}
 
 
-
 				case TYPE_REDUCE:
 				{
 					PyObject *callable, *args, *state;
-
 
 					if(!(args = PyTuple_GetItem(obj, 1)))
 						goto cleanup;
@@ -904,7 +902,6 @@ if(obj && obj->ob_refcnt < 0)
 					if(PyTuple_GET_SIZE(obj) > 2)
 					{
 						state = PyTuple_GET_ITEM(obj, 2);
-
 						if(!set_state(container->obj, state))
 							goto cleanup;
 					}

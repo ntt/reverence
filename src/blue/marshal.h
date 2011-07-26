@@ -92,6 +92,7 @@ extern PyObject *marshal_Load(PyObject *self, PyObject *args, PyObject *kwds);
 extern PyObject *marshal_Save(PyObject *self, PyObject *args, PyObject *kwds);
 extern PyObject *marshal_set_find_global_func(PyObject *self, PyObject *callable);
 extern PyObject *marshal_set_debug_func(PyObject *self, PyObject *callable);
+extern PyObject *debug_func;
 
 extern PyObject *string_table;
 

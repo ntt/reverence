@@ -495,8 +495,8 @@ rd_setstate(PyDBRowDescriptorObject *self, PyObject *state)
 	}
 
 	// verify state contents
-
 	self->rd_prop_size = PyList_GET_SIZE(state);
+
 	for(i=0; i<self->rd_prop_size; i++)
 	{
 		item = PyList_GET_ITEM(state, i);
@@ -522,6 +522,7 @@ rd_Keys(PyDBRowDescriptorObject *self)
 	if(!self->rd_header)
 	{
 		int i;
+		PyObject *column;
 
 		if(!(self->rd_header = PyList_New(self->ob_size+self->rd_prop_size)))
 			return NULL;
@@ -530,7 +531,11 @@ rd_Keys(PyDBRowDescriptorObject *self)
 			PyList_SET_ITEM(self->rd_header, i, PyString_FromString(self->rd_cd[i].cd_name));
 
 		for(i=0; i < self->rd_prop_size; i++)
-			PyList_SET_ITEM(self->rd_header, i+self->ob_size, PyTuple_GET_ITEM(PyList_GET_ITEM(self->rd_properties, i), 0));
+		{
+			column = PyTuple_GET_ITEM(PyList_GET_ITEM(self->rd_properties, i), 0);
+			Py_INCREF(column);  // ugh.
+			PyList_SET_ITEM(self->rd_header, i+self->ob_size, column);
+		}
 	}
 
 	Py_INCREF(self->rd_header);

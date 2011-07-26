@@ -761,15 +761,14 @@ if(obj && obj->ob_refcnt < 0)
 			// - add the object to the current container in a container-
 			//   specific manner. note that ownership of the reference is to be
 			//   given to the container object.
-/*
-#ifdef DEBUG_LOAD
-		{
-			char text[220];
-			sprintf(text, "container ix:%d type:0x%02x free:%d index:%d", ct_ix, container->type, container->free, container->index);
-			DEBUG(text);
+
+#if MARSHAL_DEBUG
+		{ 
+			//char text[220];
+			printf("container ix:%d (%08lx) type:0x%02x free:%d index:%d\r\n", ct_ix, container->obj, container->type, container->free, container->index);
 		}
-#endif // DEBUG_LOAD
-*/
+#endif // MARSHAL_DEBUG
+
 
 			switch(container->type) {
 				case TYPE_TUPLE:
@@ -921,6 +920,9 @@ if(obj && obj->ob_refcnt < 0)
 				case TYPE_LIST_ITERATOR:
 					if(type == TYPE_MARK)
 					{
+						// clear mark so nested iterator containers do not get terminated prematurely.
+						type = -1;
+
 						// decref the append method
 						Py_XDECREF(container->obj2);
 						container->obj2 = NULL;
@@ -941,6 +943,10 @@ if(obj && obj->ob_refcnt < 0)
 					if(!PyObject_CallFunctionObjArgs(container->obj2, obj, NULL))
 						goto cleanup;
 
+#if MARSHAL_DEBUG
+					printf("Appended %08lx to %08lx\r\n", obj, container->obj);
+#endif // MARSHAL_DEBUG
+
 					Py_DECREF(obj);
 					break;
 
@@ -948,6 +954,9 @@ if(obj && obj->ob_refcnt < 0)
 				case TYPE_DICT_ITERATOR:
 					if(type == TYPE_MARK)
 					{
+						// clear mark so nested iterator containers do not get terminated prematurely.
+						type = -1;
+
 						// we're done with dict iter. container is finished.
 						container->free = 1;
 						break;
@@ -1196,6 +1205,7 @@ init_marshal(void)
 	tokenname[TYPE_DICT] = "DICT";
 	tokenname[TYPE_INSTANCE] = "INSTANCE";
 	tokenname[TYPE_BLUE] = "BLUE";
+	tokenname[TYPE_REF] = "REF";
 	tokenname[TYPE_CHECKSUM] = "CHECKSUM";
 	tokenname[TYPE_TRUE] = "TRUE";
 	tokenname[TYPE_FALSE] = "FALSE";

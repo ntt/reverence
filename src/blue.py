@@ -120,14 +120,14 @@ class EVE(object):
 	RemoteSvc(service) - creates offline RemoteSvc wrapper for given service.
 	"""
 
-	def __init__(self, root, server="Tranquility", machoVersion=-1, languageID="EN", cachepath=None, compatibility=False):
+	def __init__(self, root, server="Tranquility", machoVersion=-1, languageID="EN", cachepath=None, compatibility=False, wineprefix=".wine"):
 		self.root = root
 		self.server = server
 		self.rot = _Rot(self)
 		self.languageID = languageID
 
 		# default cache
-		self.cache = cache.CacheMgr(self.root, self.server, machoVersion, cachepath)
+		self.cache = cache.CacheMgr(self.root, self.server, machoVersion, cachepath, wineprefix)
 		self.machoVersion = self.cache.machoVersion
 
 		self.cfg = self.cache.GetConfigMgr(compatibility=compatibility)

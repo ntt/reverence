@@ -37,7 +37,7 @@ def GetCacheFileName(key, machoVersion=99999):
 		raise RuntimeError("machoNet version 213 or higher required")
 
 
-def _findcachepath(root, servername):
+def _findcachepath(root, servername, wineprefix):
 	# returns (root, cachepath) tuple where eve stuff may be found.
 
 	if os.name == "nt":
@@ -73,15 +73,15 @@ def _findcachepath(root, servername):
 		user = pwd.getpwuid(stat_info.st_uid).pw_name
 
 		# get the filesystem root for WINE
-		x = root.find(".wine/drive_")
+		x = root.find(os.path.join(wineprefix, "drive_"))
 		if x == -1:
 			return (None, None)
 
-		wineroot = root[:x+5]  # all drive_ folders be here
+		wineroot = root[:x+len(wineprefix)]  # all drive_ folders be here
 
 		# now we can get the cache folder name (as produced by EVE
 		# from the install path by mangling separators and spaces)
-		cacheFolderName = root[x+12:].replace("/", "_").replace(" ", "_")
+		cacheFolderName = root[x+len(wineprefix)+7:].replace("/", "_").replace(" ", "_")
 		cacheFolderName += "_" + servername
 		cacheFolderName = cacheFolderName.lower()
 
@@ -91,6 +91,7 @@ def _findcachepath(root, servername):
 		for settingsroot in [
 			os.path.join(wineroot, "drive_c/users", user),
 			os.path.join(wineroot, "drive_c/windows/profile", user),
+			os.path.join(wineroot, "drive_c/windows/profiles", user),
 		]:
 			if not os.path.exists(settingsroot):
 				continue
@@ -116,7 +117,7 @@ def _findcachepath(root, servername):
 class CacheMgr:
 	"""Interface to an EVE Installation's cache and bulkdata."""
 
-	def __init__(self, root, servername="Tranquility", machoversion=-1, cachepath=None):
+	def __init__(self, root, servername="Tranquility", machoversion=-1, cachepath=None, wineprefix=".wine"):
 		self.cfg = None
 		self._time_load = 0.0
 
@@ -127,6 +128,7 @@ class CacheMgr:
 		serveraliases = {
 			"tranquility": "87.237.38.200",
 			"singularity": "87.237.38.50",
+			"duality": "87.237.38.60",
 		}
 
 		if servername.replace(".","").isdigit():
@@ -157,7 +159,7 @@ class CacheMgr:
 			guess = True
 			candidates = [
 				(root, os.path.join(root, "cache")),
-				_findcachepath(root, servername),
+				_findcachepath(root, servername, wineprefix),
 			]
 		else:
 			# manually specified cachepath! only look there.

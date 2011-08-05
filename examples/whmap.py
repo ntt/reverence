@@ -15,8 +15,8 @@
 #-----------------------------------------------------------------------------
 # Change the following settings to suit your needs:
 
-EVEROOT = r"/home/sdressel/.wine/drive_c/Programme/CCP/EVE"
-OUT = r"/tmp/reverence/whtcmap.png"
+EVEROOT = r"E:\EVE"
+OUT = r"C:\whtcmap.png"
 
 WIDTH = 1920
 HEIGHT = 1200

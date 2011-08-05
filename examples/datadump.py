@@ -19,10 +19,10 @@
 MODE = "XML"
 
 # where is EVE?
-EVEPATH = "E:/EVE"
+EVEPATH = "/home/sdressel/.wine/drive_c/Programme/CCP/EVE"
 
 # where to output the dump?
-OUTPATH = "N:/temp"
+OUTPATH = "/tmp/reverence/"
 
 #-----------------------------------------------------------------------------
 
@@ -36,19 +36,20 @@ if MODE not in ("SQL", "XML"):
 eve = blue.EVE(EVEPATH)
 c = eve.getcachemgr()
 
-cachedObjects = c.LoadCacheFolder("BulkData")
-cachedObjects2 = c.LoadCacheFolder("CachedObjects")
+cachedObjects = c.LoadCacheFolder("CachedMethodCalls")
+print "foo"
+#cachedObjects2 = c.LoadCacheFolder("CachedMethodCalls")
 
 # bulkdata updates may exist in cache folder. do version check and
 # update when necessary.
-while cachedObjects2:
-	objID, obj = cachedObjects2.popitem()
-	if objID in cachedObjects:
-		if obj.version < cachedObjects[objID].version:
-			continue  # skip, the object is an older version
-	cachedObjects[objID] = obj
-	
-cachedObjects.update()
+#while cachedObjects2:
+#	objID, obj = cachedObjects2.popitem()
+#	if objID in cachedObjects:
+#		if obj.version < cachedObjects[objID].version:
+#			continue  # skip, the object is an older version
+#	cachedObjects[objID] = obj
+#	
+#cachedObjects.update()
 
 #-----------------------------------------------------------------------------
 
@@ -88,7 +89,6 @@ def sqlstr(x):
 
 # see what we can pull out of the hat...
 for obj in cachedObjects.itervalues():
-
 	name = filter(lambda x: x not in "()'\" ", str(obj.objectID).replace(",",".").replace('u"', "").replace("u'", ""))
 	item = name.split(".")[-1]
 	if item.isdigit():

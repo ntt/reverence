@@ -207,6 +207,8 @@ class CacheMgr:
 				self.cachepath = cachepath
 				self.machoVersion = protocol
 				self.machocachepath = os.path.join(machopath, str(protocol))
+				self.BULK_SYSTEM_PATH = os.path.join(root, 'bulkdata')
+				self.BULK_CACHE_PATH = os.path.join(cachepath, 'bulkdata', str(protocol))
 				return
 
 		if self.machoVersion == -1:
@@ -260,6 +262,17 @@ class CacheMgr:
 			# Oops. We did not get what we asked for...
 			raise RuntimeError("Hash collision: Wanted '%s' but got '%s'" % (key, what))
 		return obj
+
+
+	def LoadBulk(self, bulkID):
+		"""Loads bulkdata for the specified bulkID"""
+		# This is a protocol 276+ feature.
+		for folder in [self.BULK_CACHE_PATH, self.BULK_SYSTEM_PATH]:
+			cacheName = os.path.join(folder, str(bulkID)+".cache2")
+			if os.path.exists(cacheName):
+				# No version check required with CCP's new system.
+				return blue.marshal.Load(open(cacheName, "rb").read())
+
 
 	def LoadObject(self, key):
 		"""Load named object from cache or builkdata, whichever is the higher version."""

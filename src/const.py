@@ -101,11 +101,16 @@ flagSubSystemSlot6 = 131
 flagSubSystemSlot7 = 132
 flagUnlocked = 64
 flagWallet = 1
+flagJunkyardReprocessed = 146
+flagJunkyardTrashed = 147
+flagWardrobe = 3
 
 categoryAbstract = 29
 categoryAccessories = 5
 categoryAncientRelic = 34
+categoryApparel = 30
 categoryAsteroid = 25
+categoryWorldSpace = 26
 categoryBlueprint = 9
 categoryBonus = 14
 categoryCelestial = 2
@@ -118,15 +123,23 @@ categoryEntity = 11
 categoryImplant = 20
 categoryMaterial = 4
 categoryModule = 7
+categoryOrbital = 46
 categoryOwner = 1
+categoryPlaceables = 49
+categoryPlanetaryCommodities = 43
+categoryPlanetaryInteraction = 41
+categoryPlanetaryResources = 42
 categoryReaction = 24
 categoryShip = 6
 categorySkill = 16
+categorySovereigntyStructure = 40
 categoryStation = 3
 categoryStructure = 23
+categoryStructureUpgrade = 39
 categorySubSystem = 32
 categorySystem = 0
 categoryTrading = 10
+
 
 # Inventory constants - groups
 groupAccelerationGateKeys = 474
@@ -220,6 +233,97 @@ groupMissionMinmatarRepublicCarrier = 868
 groupMissionFighterDrone = 861
 groupMissionGenericFreighters = 875
 
+groupAccelerationGateKeys = 474
+groupAfterBurner = 46
+groupAgentsinSpace = 517
+groupAlliance = 32
+groupAncientCompressedIce = 903
+groupAncientSalvage = 966
+groupArkonor = 450
+groupArmorReinforcer = 329
+groupArmorRepairUnit = 62
+groupAssemblyArray = 397
+groupAsteroidAngelCartelBattleCruiser = 576
+groupAsteroidAngelCartelBattleship = 552
+groupAsteroidAngelCartelCommanderBattleCruiser = 793
+groupAsteroidAngelCartelCommanderCruiser = 790
+groupAsteroidAngelCartelCommanderDestroyer = 794
+groupAsteroidAngelCartelCommanderFrigate = 789
+groupAsteroidAngelCartelCruiser = 551
+groupAsteroidAngelCartelDestroyer = 575
+groupAsteroidAngelCartelFrigate = 550
+groupAsteroidAngelCartelHauler = 554
+groupAsteroidAngelCartelOfficer = 553
+groupAsteroidBelt = 9
+groupAsteroid = 25
+groupAsteroidBloodRaidersBattleCruiser = 578
+groupAsteroidBloodRaidersBattleship = 556
+groupAsteroidBloodRaidersCommanderBattleCruiser = 795
+groupAsteroidBloodRaidersCommanderCruiser = 791
+groupAsteroidBloodRaidersCommanderDestroyer = 796
+groupAsteroidBloodRaidersCommanderFrigate = 792
+groupAsteroidBloodRaidersCruiser = 555
+groupAsteroidBloodRaidersDestroyer = 577
+groupAsteroidBloodRaidersFrigate = 557
+groupAsteroidBloodRaidersHauler = 558
+groupAsteroidBloodRaidersOfficer = 559
+groupAsteroidGuristasBattleCruiser = 580
+groupAsteroidGuristasBattleship = 560
+groupAsteroidGuristasCommanderBattleCruiser = 797
+groupAsteroidGuristasCommanderCruiser = 798
+groupAsteroidGuristasCommanderDestroyer = 799
+groupAsteroidGuristasCommanderFrigate = 800
+groupAsteroidGuristasCruiser = 561
+groupAsteroidGuristasDestroyer = 579
+groupAsteroidGuristasFrigate = 562
+groupAsteroidGuristasHauler = 563
+groupAsteroidGuristasOfficer = 564
+groupAsteroidRogueDroneBattleCruiser = 755
+groupAsteroidRogueDroneBattleship = 756
+groupAsteroidRogueDroneCruiser = 757
+groupAsteroidRogueDroneDestroyer = 758
+groupAsteroidRogueDroneFrigate = 759
+groupAsteroidRogueDroneHauler = 760
+groupAsteroidRogueDroneSwarm = 761
+groupAsteroidSanshasNationBattleCruiser = 582
+groupAsteroidSanshasNationBattleship = 565
+groupAsteroidSanshasNationCommanderBattleCruiser = 807
+groupAsteroidSanshasNationCommanderCruiser = 808
+groupAsteroidSanshasNationCommanderDestroyer = 809
+groupAsteroidSanshasNationCommanderFrigate = 810
+groupAsteroidSanshasNationCruiser = 566
+groupAsteroidSanshasNationDestroyer = 581
+groupAsteroidSanshasNationFrigate = 567
+groupAsteroidSanshasNationHauler = 568
+groupAsteroidSanshasNationOfficer = 569
+groupAsteroidSerpentisBattleCruiser = 584
+groupAsteroidSerpentisBattleship = 570
+groupAsteroidSerpentisCommanderBattleCruiser = 811
+groupAsteroidSerpentisCommanderCruiser = 812
+groupAsteroidSerpentisCommanderDestroyer = 813
+groupAsteroidSerpentisCommanderFrigate = 814
+groupAsteroidSerpentisCruiser = 571
+groupAsteroidSerpentisDestroyer = 583
+groupAsteroidSerpentisFrigate = 572
+groupAsteroidSerpentisHauler = 573
+groupAsteroidSerpentisOfficer = 574
+groupAsteroidRogueDroneCommanderFrigate = 847
+groupAsteroidRogueDroneCommanderDestroyer = 846
+groupAsteroidRogueDroneCommanderCruiser = 845
+groupAsteroidRogueDroneCommanderBattleCruiser = 843
+groupAsteroidRogueDroneCommanderBattleship = 844
+groupAsteroidAngelCartelCommanderBattleship = 848
+groupAsteroidBloodRaidersCommanderBattleship = 849
+groupAsteroidGuristasCommanderBattleship = 850
+groupAsteroidSanshasNationCommanderBattleship = 851
+groupAsteroidSerpentisCommanderBattleship = 852
+groupMissionAmarrEmpireCarrier = 865
+groupMissionCaldariStateCarrier = 866
+groupMissionContainer = 952
+groupMissionGallenteFederationCarrier = 867
+groupMissionMinmatarRepublicCarrier = 868
+groupMissionFighterDrone = 861
+groupMissionGenericFreighters = 875
 groupAssaultShip = 324
 groupAuditLogSecureContainer = 448
 groupBattlecruiser = 419
@@ -251,6 +355,7 @@ groupClone = 23
 groupCloud = 227
 groupCombatDrone = 100
 groupComet = 305
+groupCommandPins = 1027
 groupCommandShip = 540
 groupComposite = 429
 groupComputerInterfaceNode = 317
@@ -272,8 +377,6 @@ groupCruiser = 26
 groupStrategicCruiser = 963
 groupCustomsOfficial = 446
 groupCynosuralGeneratorArray = 838
-groupCynosuralGeneratorArray = 838
-groupCynosuralSystemJammer = 839
 groupCynosuralSystemJammer = 839
 groupDarkOchre = 453
 groupDataInterfaces = 716
@@ -323,6 +426,7 @@ groupDeadspaceSleeperEmergentPatroller = 987
 groupDeadspaceSleeperEmergentSentinel = 961
 groupDeadspaceSleeperEmergentDefender = 986
 groupDefenderMissile = 88
+groupDefenseBunkers = 1004
 groupDestroyer = 420
 groupDestructibleAgentsInSpace = 715
 groupDestructibleSentryGun = 383
@@ -336,10 +440,14 @@ groupEnergyNeutralizingBattery = 837
 groupEnergyWeapon = 53
 groupEnergyVampire = 68
 groupExhumer = 543
+groupExtractionControlUnitPins = 1063
+groupExtractorPins = 1026
 groupFaction = 19
 groupFactionDrone = 288
 groupFakeSkills = 505
+groupFighterBomber = 1023
 groupFighterDrone = 549
+groupFlashpoint = 1071
 groupForceField = 411
 groupForceFieldArray = 445
 groupFreightContainer = 649
@@ -350,6 +458,7 @@ groupFrigate = 25
 groupFrozen = 281
 groupGasCloudHarvester = 737
 groupGasIsotopes = 422
+groupGeneral = 280
 groupGlobalWarpDisruptor = 368
 groupGneiss = 467
 groupHarvestableCloud = 711
@@ -361,11 +470,18 @@ groupHybridAmmo = 85
 groupHybridWeapon = 74
 groupIce = 465
 groupIceProduct = 423
+groupImpactor = 1070
 groupIndustrial = 28
 groupIndustrialCommandShip = 941
+groupInfrastructureHub = 1012
 groupInterceptor = 831
 groupInterdictor = 541
 groupIntermediateMaterials = 428
+groupInvasionSanshaNationBattleship = 1056
+groupInvasionSanshaNationCapital = 1052
+groupInvasionSanshaNationCruiser = 1054
+groupInvasionSanshaNationFrigate = 1053
+groupInvasionSanshaNationIndustrial = 1051
 groupJaspet = 456
 groupJumpPortalArray = 707
 groupJumpPortalGenerator = 590
@@ -419,8 +535,10 @@ groupMissionCaldariStateDestroyer = 676
 groupMissionCaldariStateFrigate = 671
 groupMissionCaldariStateOther = 675
 groupMissionDrone = 337
+groupMissionFactionBattleships = 924
+groupMissionFactionCruisers = 1006
+groupMissionFactionFrigates = 1007
 groupMissionFactionIndustrials = 927
-groupMissionFactionVessels = 924
 groupMissionGallenteFederationBattlecruiser = 681
 groupMissionGallenteFederationBattleship = 680
 groupMissionGallenteFederationCruiser = 678
@@ -451,7 +569,6 @@ groupMobileLaserSentry = 430
 groupMobileMissileSentry = 417
 groupTransportShip = 380
 groupJumpFreighter = 902
-
 groupMobilePowerCore = 414
 groupMobileProjectileSentry = 426
 groupMobileReactor = 438
@@ -463,7 +580,7 @@ groupMoney = 17
 groupMoon = 8
 groupMoonMaterials = 427
 groupMoonMining = 416
-groupMothership = 659
+groupSupercarrier = 659
 groupOmber = 469
 groupOverseerPersonalEffects = 493
 groupOutpostImprovements = 872
@@ -471,10 +588,16 @@ groupOutpostUpgrades = 876
 groupPirateDrone = 185
 groupPlagioclase = 458
 groupPlanet = 7
+groupPlanetaryCustomsOffices = 1025
 groupPlanetaryCloud = 312
+groupPlanetaryLinks = 1036
 groupPoliceDrone = 182
+groupProcessPins = 1028
+groupProjectileAmmo = 83
 groupProjectileWeapon = 55
+groupTractorBeam = 650
 groupProtectiveSentryGun = 180
+groupPrototypeExplorationShip = 1022
 groupProximityDrone = 97
 groupPyroxeres = 459
 groupRadioactive = 282
@@ -489,6 +612,7 @@ groupRepairDrone = 299
 groupRing = 13
 groupRogueDrone = 287
 groupRookieship = 237
+groupSalvagedMaterials = 754
 groupScanProbeLauncher = 481
 groupScannerArray = 709
 groupScannerProbe = 479
@@ -500,10 +624,15 @@ groupSentryGun = 99
 groupShieldBooster = 40
 groupShieldHardeningArray = 444
 groupShipMaintenanceArray = 363
+groupShippingCrates = 382
 groupShuttle = 31
 groupSiegeModule = 515
 groupSilo = 404
 groupSolarSystem = 5
+groupSovereigntyClaimMarkers = 1003
+groupSovereigntyDisruptionStructures = 1005
+groupSovereigntyStructures = 1004
+groupSpaceportPins = 1030
 groupSpawnContainer = 306
 groupSpodumain = 461
 groupStargate = 10
@@ -515,6 +644,7 @@ groupStationUpgradePlatform = 835
 groupStationImprovementPlatform = 836
 groupStealthBomber = 834
 groupStealthEmitterArray = 480
+groupStoragePins = 1029
 groupStorylineBattleship = 523
 groupStorylineCruiser = 522
 groupStorylineFrigate = 520
@@ -522,15 +652,21 @@ groupStorylineMissionBattleship = 534
 groupStorylineMissionCruiser = 533
 groupStorylineMissionFrigate = 527
 groupStripMiner = 464
+groupStructureRepairArray = 840
+groupSovUpgradeIndustrial = 1020
+groupSovUpgradeMilitary = 1021
 groupSun = 6
 groupSuperWeapon = 588
 groupSurveyProbe = 492
 groupSystem = 0
+groupTargetPaintingBattery = 877
 groupTemporaryCloud = 335
+groupTestOrbitals = 1073
+groupTerranArtifacts = 519
 groupTitan = 30
 groupTool = 332
 groupTrackingArray = 473
-groupTrackingComputer= 213
+groupTrackingComputer = 213
 groupTrackingDisruptor = 291
 groupTrackingLink = 209
 groupTradeSession = 95
@@ -545,6 +681,7 @@ groupWarpGate = 366
 groupWarpScramblingBattery = 443
 groupWarpScramblingDrone = 545
 groupWreck = 186
+groupZombieEntities = 934
 groupMissionGenericBattleships = 816
 groupMissionGenericCruisers = 817
 groupMissionGenericFrigates = 818
@@ -571,6 +708,10 @@ groupOffensiveSubSystems = 956
 groupPropulsionSubSystems = 957
 groupWormhole = 988
 groupSecondarySun = 995
+groupGameTime = 943
+groupWorldSpace = 935
+groupSalvager = 1122
+
 
 typeTicketFrigate = 30717
 typeTicketDestroyer = 30718
@@ -758,7 +899,50 @@ typePilotLicence = 29668
 typeAsteroidBelt = 15
 typeLetterOfRecommendation = 30906
 
-keyCash = 1000
+accountingKeyCash = 1000
+accountingKeyCash2 = 1001
+accountingKeyCash3 = 1002
+accountingKeyCash4 = 1003
+accountingKeyCash5 = 1004
+accountingKeyCash6 = 1005
+accountingKeyCash7 = 1006
+accountingKeyProperty = 1100
+accountingKeyAUR = 1200
+accountingKeyAUR2 = 1201
+accountingKeyAUR3 = 1202
+accountingKeyAUR4 = 1203
+accountingKeyAUR5 = 1204
+accountingKeyAUR6 = 1205
+accountingKeyAUR7 = 1206
+accountingKeyEscrow = 1500
+accountingKeyReceivables = 1800
+accountingKeyPayables = 2000
+accountingKeyGold = 2010
+accountingKeyEquity = 2900
+accountingKeySales = 3000
+accountingKeyPurchases = 4000
+accountingKeyDustIsk = 10000
+accountingKeyDustMPlex = 11000
+
+cashAccounts = set([
+ accountingKeyCash,
+ accountingKeyCash2,
+ accountingKeyCash3,
+ accountingKeyCash4,
+ accountingKeyCash5,
+ accountingKeyCash6,
+ accountingKeyCash7
+])
+
+aurAccounts = set([
+ accountingKeyAUR,
+ accountingKeyAUR2,
+ accountingKeyAUR3,
+ accountingKeyAUR4,
+ accountingKeyAUR5,
+ accountingKeyAUR6,
+ accountingKeyAUR7
+])
 
 flagLoSlot0 = 11
 flagLoSlot1 = 12
@@ -820,6 +1004,8 @@ agentTypeStorylineMissionAgent = 7
 agentTypeTutorialAgent = 3
 agentTypeFactionalWarfareAgent = 9
 agentTypeEpicArcAgent = 10
+agentTypeAura = 11
+
 
 agentRangeNearestEnemyCombatZone = 11
 agentRangeNeighboringConstellation = 10
@@ -839,11 +1025,18 @@ agentIskMultiplierLevel3 = 4
 agentIskMultiplierLevel4 = 8
 agentIskMultiplierLevel5 = 16
 
-agentLpMultiplierLevel1 = 10
-agentLpMultiplierLevel2 = 30
-agentLpMultiplierLevel3 = 90
-agentLpMultiplierLevel4 = 270
-agentLpMultiplierLevel5 = 2430
+agentLpMultiplierLevel1 = 20
+agentLpMultiplierLevel2 = 60
+agentLpMultiplierLevel3 = 180
+agentLpMultiplierLevel4 = 540
+agentLpMultiplierLevel5 = 4860
+
+agentLpMultipliers = (agentLpMultiplierLevel1,
+ agentLpMultiplierLevel2,
+ agentLpMultiplierLevel3,
+ agentLpMultiplierLevel4,
+ agentLpMultiplierLevel5)
+
 
 agentIskRandomLowValue  = 11000
 agentIskRandomHighValue = 16500
@@ -2436,7 +2629,7 @@ probeScanGroups[probeScanGroupShips] = set([
     groupLogistics,
     groupMarauders,
     groupMiningBarge,
-    groupMothership,
+    groupSupercarrier,
     groupRookieship,
     groupShuttle,
     groupStealthBomber,
@@ -2592,5 +2785,223 @@ dungeonCompletionDestroyLCS = 0
 dungeonCompletionDestroyGuards = 1
 dungeonCompletionDestroyLCSandGuards = 2
 
-previewCategories = [categoryDrone, categoryShip, categoryStructure, categoryStation]
-previewGroups = [groupStargate, groupFreightContainer, groupSecureCargoContainer, groupCargoContainer]
+turretModuleGroups = [
+ groupEnergyWeapon,
+ groupGasCloudHarvester,
+ groupHybridWeapon,
+ groupMiningLaser,
+ groupProjectileWeapon,
+ groupStripMiner,
+ groupFrequencyMiningLaser,
+ groupTractorBeam,
+ groupSalvager
+]
+
+previewCategories = [
+ categoryDrone,
+ categoryShip,
+ categoryStructure,
+ categoryStation,
+ categorySovereigntyStructure,
+ categoryApparel
+]
+
+previewGroups = [
+ groupStargate,
+ groupFreightContainer,
+ groupSecureCargoContainer,
+ groupCargoContainer,
+ groupAuditLogSecureContainer
+] + turretModuleGroups
+
+
+dgmGroupableGroupIDs = set([
+ groupEnergyWeapon,
+ groupProjectileWeapon,
+ groupHybridWeapon,
+ groupMissileLauncher,
+ groupMissileLauncherAssault,
+ groupMissileLauncherCitadel,
+ groupMissileLauncherCruise,
+ groupMissileLauncherDefender,
+ groupMissileLauncherHeavy,
+ groupMissileLauncherHeavyAssault,
+ groupMissileLauncherRocket,
+ groupMissileLauncherSiege,
+ groupMissileLauncherStandard
+])
+
+singletonBlueprintOriginal = 1
+singletonBlueprintCopy = 2
+
+
+
+
+cacheEosNpcToNpcStandings = 109998
+cacheTutContextHelp = 209999
+cacheTutCategories = 200006
+cacheTutCriterias = 200003
+cacheTutTutorials = 200001
+cacheTutActions = 200009
+cacheDungeonArchetypes = 300001
+cacheDungeonDungeons = 300005
+cacheDungeonEventMessageTypes = 300017
+cacheDungeonEventTypes = 300015
+cacheDungeonTriggerTypes = 300013
+cacheInvCategories = 600001
+cacheInvContrabandTypes = 600008
+cacheInvGroups = 600002
+cacheInvTypes = 600004
+cacheInvTypeMaterials = 600005
+cacheInvTypeReactions = 600010
+cacheInvWreckUsage = 600009
+cacheInvMetaGroups = 600006
+cacheInvMetaTypes = 600007
+cacheDogmaAttributes = 800004
+cacheDogmaEffects = 800005
+cacheDogmaExpressionCategories = 800001
+cacheDogmaExpressions = 800003
+cacheDogmaOperands = 800002
+cacheDogmaTypeAttributes = 800006
+cacheDogmaTypeEffects = 800007
+cacheDogmaUnits = 800009
+cacheEveMessages = 1000001
+cacheInvBlueprintTypes = 1200001
+cacheMapRegions = 1409999
+cacheMapConstellations = 1409998
+cacheMapSolarSystems = 1409997
+cacheMapSolarSystemLoadRatios = 1409996
+cacheLocationWormholeClasses = 1409994
+cacheMapPlanets = 1409993
+cacheMapSolarSystemJumpIDs = 1409992
+cacheMapSolarSystemPseudoSecurities = 1409991
+cacheMapTypeBalls = 1400001
+cacheMapCelestialDescriptions = 1400008
+cacheMapLocationScenes = 1400006
+cacheMapLocationWormholeClasses = 1400002
+cacheMapRegionsTable = 1400009
+cacheMapConstellationsTable = 1400010
+cacheMapSolarSystemsTable = 1400011
+cacheNpcCommandLocations = 1600009
+cacheNpcCommands = 1600005
+cacheNpcDirectorCommandParameters = 1600007
+cacheNpcDirectorCommands = 1600006
+cacheNpcLootTableFrequencies = 1600004
+cacheNpcTypeGroupingClassSettings = 1600016
+cacheNpcTypeGroupingClasses = 1600015
+cacheNpcTypeGroupingTypes = 1600017
+cacheNpcTypeGroupings = 1600014
+cacheNpcTypeLoots = 1600001
+cacheRamSkillInfo = 1809999
+cacheRamActivities = 1800003
+cacheRamAssemblyLineTypes = 1800006
+cacheRamAssemblyLineTypesCategory = 1800004
+cacheRamAssemblyLineTypesGroup = 1800005
+cacheRamCompletedStatuses = 1800007
+cacheRamInstallationTypes = 1800002
+cacheRamTypeRequirements = 1800001
+cacheReverseEngineeringTableTypes = 1800009
+cacheReverseEngineeringTables = 1800008
+cacheShipInsurancePrices = 2000007
+cacheShipTypes = 2000001
+cacheStaOperations = 2209999
+cacheStaServices = 2209998
+cacheStaOperationServices = 2209997
+cacheStaSIDAssemblyLineQuantity = 2209996
+cacheStaSIDAssemblyLineType = 2209995
+cacheStaSIDAssemblyLineTypeQuantity = 2209994
+cacheStaSIDOfficeSlots = 2209993
+cacheStaSIDReprocessingEfficiency = 2209992
+cacheStaSIDServiceMask = 2209991
+cacheStaStationImprovementTypes = 2209990
+cacheStaStationUpgradeTypes = 2209989
+cacheStaStations = 2209988
+cacheMktOrderStates = 2409999
+cacheMktNpcMarketData = 2400001
+cacheCrpRoles = 2809999
+cacheCrpActivities = 2809998
+cacheCrpNpcDivisions = 2809997
+cacheCrpCorporations = 2809996
+cacheCrpNpcMembers = 2809994
+cacheCrpPlayerCorporationIDs = 2809993
+cacheCrpTickerNamesStatic = 2809992
+cacheNpcSupplyDemand = 2800001
+cacheCrpRegistryGroups = 2800002
+cacheCrpRegistryTypes = 2800003
+cacheCrpNpcCorporations = 2800006
+cacheAgentAgents = 3009999
+cacheAgentCorporationActivities = 3009998
+cacheAgentCorporations = 3009997
+cacheAgentEpicMissionMessages = 3009996
+cacheAgentEpicMissionsBranching = 3009995
+cacheAgentEpicMissionsNonEnd = 3009994
+cacheAgtContentAgentInteractionMissions = 3009992
+cacheAgtContentFlowControl = 3009991
+cacheAgtContentTalkToAgentMissions = 3009990
+cacheAgtPrices = 3009989
+cacheAgtResearchStartupData = 3009988
+cacheAgtContentTemplates = 3000001
+cacheAgentMissionsKill = 3000006
+cacheAgtStorylineMissions = 3000008
+cacheAgtContentCourierMissions = 3000003
+cacheAgtContentExchangeOffers = 3000005
+cacheAgentEpicArcConnections = 3000013
+cacheAgentEpicArcMissions = 3000015
+cacheAgentEpicArcs = 3000012
+cacheAgtContentMissionExtraStandings = 3000020
+cacheAgtContentMissionTutorials = 3000018
+cacheAgtContentMissionLocationFilters = 3000021
+cacheAgtOfferDetails = 3000004
+cacheAgtOfferTableContents = 3000010
+cacheChrSchools = 3209997
+cacheChrRaces = 3200001
+cacheChrBloodlines = 3200002
+cacheChrAncestries = 3200003
+cacheChrCareers = 3200004
+cacheChrSpecialities = 3200005
+cacheChrBloodlineNames = 3200010
+cacheChrAttributes = 3200014
+cacheChrFactions = 3200015
+cacheChrDefaultOverviews = 3200011
+cacheChrDefaultOverviewGroups = 3200012
+cacheChrNpcCharacters = 3200016
+cacheFacWarCombatZoneSystems = 4500006
+cacheFacWarCombatZones = 4500005
+cacheActBillTypes = 6400004
+cachePetCategories = 8109999
+cachePetQueues = 8109998
+cachePetCategoriesVisible = 8109997
+cacheGMQueueOrder = 8109996
+cacheCertificates = 5100001
+cacheCertificateRelationships = 5100004
+cachePlanetSchematics = 7300004
+cachePlanetSchematicsTypeMap = 7300005
+cachePlanetSchematicsPinMap = 7300003
+cacheBattleStatuses = 100509999
+cacheBattleResults = 100509998
+cacheBattleServerStatuses = 100509997
+cacheBattleMachines = 100509996
+cacheBattleClusters = 100509995
+cacheMapDistrictCelestials = 100309999
+cacheMapDistricts = 100300014
+cacheMapBattlefields = 100300015
+cacheMapLevels = 100300020
+cacheMapOutposts = 100300022
+
+cacheResGraphics = 2001800001
+cacheResSounds = 2001800002
+cacheResIcons = 2001800004
+
+cacheEspCorporations = 1
+cacheEspAlliances = 2
+cacheEspSolarSystems = 3
+cacheSolarSystemObjects = 4
+cacheCargoContainers = 5
+cachePriceHistory = 6
+cacheTutorialVersions = 7
+cacheSolarSystemOffices = 8
+
+DBTYPE_I2 = 2
+DBTYPE_I4 = 3
+DBTYPE_R8 = 5
+DBTYPE_WSTR = 130

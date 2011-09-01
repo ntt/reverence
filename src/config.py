@@ -18,7 +18,7 @@ Parts of code inspired by or based on EVE Online, with permission from CCP.
 
 import time
 import sys
-
+from . import _blue as blue
 from . import const, util, dbutil
 
 _urga = util.Row.__getattr__
@@ -252,7 +252,9 @@ class RamCompletedStatus(util.Row):
 	def __getattr__(self, name):
 		if name == "name":
 			name = "completedStatusName"
-    
+		elif name == "completedStatusID" and self.cfg.protocol >= 276:
+			name = "completedStatus"
+
 		value = _urga(self, name)
 #		if name == "completedStatusName":
 #			return self.cfg.Tr(value, "dbo.ramCompletedStatuses.completedStatusText", self.completedStatusID)
@@ -289,9 +291,21 @@ class RamActivity(util.Row):
 			return "RamActivity containing crappy data"
 
 
+class RamDetail(util.Row):
+	def __getattr__(self, name):
+   		if name == "activityID":
+			return self.cfg.ramaltypes.Get(self.assemblyLineTypeID).activityID
+   		value = _urga(self, name)
+		return value
+
 
 class MapCelestialDescription(util.Row):
 	def __getattr__(self, name):
+
+		# this attribute name changed in protocol 276
+		if name == "celestialID" and self.cfg.protocol >= 276:
+			name = "itemID"
+
 		value = _urga(self, name)
 #		if name == "description":
 #			return self.cfg.Tr(value, "dbo.mapCelestialDescriptions.description", self.celestialID)
@@ -382,10 +396,10 @@ def _loader(attrName):
 	# Creates a closure used as a method in Config class (to be decorated with
 	# _memoize) that loads a specific bulkdata table.
 	def method(self):
-		ver, rem, tableName, storageClass, rowClass, primaryKey = self.__tables__[attrName]
+		ver, rem, tableName, storageClass, rowClass, primaryKey, bulkID = self._tables[attrName]
 #		if self.cache.machoVersion < ver:
 #			raise RuntimeError("%s table requires machoNet version %d, cache is version %d." % (tableName, ver, self.cache.machoVersion))
-		return self._loadbulkdata(tableName=(tableName or attrName), storageClass=storageClass, rowClass=rowClass, primaryKey=primaryKey)
+		return self._loadbulkdata(tableName=(tableName or attrName), storageClass=storageClass, rowClass=rowClass, primaryKey=primaryKey, bulkID=bulkID)
 	method.func_name = attrName
 	return method
 
@@ -398,7 +412,7 @@ class _tablemgr(type):
 
 	def __init__(cls, name, bases, dict):
 		type.__init__(cls, name, bases, dict)
-		for attrName in cls.__tables__:
+		for attrName, x in cls.__tables__:
 			if hasattr(cls, attrName):
 				# specialized loader method exists.
 				continue
@@ -496,7 +510,7 @@ class Config(object):
 		const.groupLogistics: 10000.0,
 		const.groupMarauders: 50000.0,
 		const.groupMiningBarge: 3750.0,
-		const.groupMothership: 1000000.0,
+		const.groupSupercarrier: 1000000.0,
 		const.groupRookieship: 2500.0,
 		const.groupShuttle: 500.0,
 		const.groupStealthBomber: 2500.0,
@@ -508,6 +522,7 @@ class Config(object):
 		const.groupAuditLogSecureContainer: 1000.0,
 		const.groupFreightContainer: 1000.0,
 		const.groupStrategicCruiser: 5000.0,
+		const.groupPrototypeExplorationShip: 500.0,
 		}
 
 
@@ -520,70 +535,158 @@ class Config(object):
 	# storage class  - container class for the table data. can be string to generate FilterRowset from named table.
 	# row class      - the class used to wrap rows with when they are requested.
 	# primary key    - primary key
-	__tables__ = {
-		# cfg attrib                 : (ver, del, bulkdata name     , storage class       , row class         , primary key)
-		"evegraphics"                : (  0,   0, "graphics"        , Recordset           , EveGraphics       , "graphicID"),
-		"invcategories"              : (  0,   0, "categories"      , Recordset           , InvCategory       , "categoryID"),
-		"invgroups"                  : (  0,   0, "groups"          , Recordset           , InvGroup          , "groupID"),
-		"groupsByCategories"         : (  0,   0, None              , "invgroups"         , None              , "categoryID"),
-		"invtypes"                   : (  0,   0, "types"           , Recordset           , InvType           , "typeID"),
-		"typesByGroups"              : (  0,   0, None              , "invtypes"          , None              , "groupID"),
-		"typesByMarketGroups"        : (  0,   0, None              , "invtypes"          , None              , "marketGroupID"),
-		"invmetagroups"              : (  0,   0, "metagroups"      , Recordset           , InvMetaGroup      , "metaGroupID"),
-		"invmetatypes"               : (  0,   0, "metatypes"       , util.FilterRowset   , None              , "parentTypeID"),  # custom loader!
-		"invmetatypesByTypeID"       : (  0,   0, None              , None                , None              , None),  # custom loader!
-		"invbptypes"                 : (  0,   0, "bptypes"         , Recordset           , util.Row          , "blueprintTypeID"),
-		"invreactiontypes"           : (  0,   0, "invtypereactions", util.FilterRowset   , None              , "reactionTypeID"),
-		"shiptypes"                  : (  0,   0, None              , util.IndexRowset    , util.Row          , "shipTypeID"),
-		"dgmattribs"                 : (  0,   0, None              , ItemsRecordset      , DgmAttribute      , "attributeID"),
-		"dgmeffects"                 : (  0,   0, None              , ItemsRecordset      , DgmEffect         , "effectID"),
-		"dgmtypeattribs"             : (  0,   0, None              , util.IndexedRowLists, util.Row          , ('typeID',)),
-		"dgmtypeeffects"             : (  0,   0, None              , util.IndexedRowLists, util.Row          , ('typeID',)),
-		"eveunits"                   : (  0,   0, "units"           , Recordset           , util.Row          , "unitID"),
-		"eveowners"                  : (  0,   0, "owners"          , Recordset           , EveOwners         , "ownerID"),  # custom loader!
-		"evelocations"               : (  0,   0, "locations"       , Recordset           , EveLocations      , "locationID"),  # custom loader!
-		"ramaltypes"                 : (  0,   0, None              , Recordset           , util.Row          , "assemblyLineTypeID"),
-		"ramactivities"              : (  0,   0, None              , Recordset           , RamActivity       , "activityID"),
-		"ramcompletedstatuses"       : (  0,   0, None              , Recordset           , RamCompletedStatus, "completedStatusID"),
-		"ramaltypesdetailpercategory": (  0,   0, None              , util.FilterRowset   , None              , "assemblyLineTypeID"),
-		"ramaltypesdetailpergroup"   : (  0,   0, None              , util.FilterRowset   , None              , "assemblyLineTypeID"),
-		"billtypes"                  : (  0,   0, None              , Recordset           , Billtype          , 'billTypeID'),
-		"certificates"               : (  0,   0, None              , Recordset           , Certificate       , "certificateID"),
-		"certificaterelationships"   : (  0,   0, None              , Recordset           , util.Row          , "relationshipID"),
-		"corptickernames"            : (  0,   0, "tickernames"     , Recordset           , CrpTickerNames    , "corporationID"),
-		"allianceshortnames"         : (  0,   0, None              , Recordset           , AllShortNames     , "allianceID"),
-		"mapcelestialdescriptions"   : (  0,   0, None              , Recordset           , MapCelestialDescription, "celestialID"),
-		"locationwormholeclasses"    : (  0,   0, None              , Recordset           , util.Row          , "locationID"),
-		"invcontrabandTypesByFaction": (  0,   0, None              , dict                , None              , None),  # custom loader!
-		"invcontrabandTypesByType"   : (  0,   0, None              , dict                , None              , None),  # custom loader!
-		"locationscenes"             : (242,   0, None              , Recordset           , util.Row          , 'locationID'),
-		"ownericons"                 : (242,   0, None              , Recordset           , util.Row          , 'ownerID'),
-		"icons"                      : (242,   0, None              , Recordset           , util.Row          , 'iconID'),
-		"sounds"                     : (242,   0, None              , Recordset           , util.Row          , 'soundID'),
-		"schematics"                 : (242,   0, None              , Recordset           , Schematic         , 'schematicID'),
-		"schematicstypemap"          : (242,   0, None              , util.FilterRowset   , None              , 'schematicID'),  # custom loader!
-		"schematicsByType"           : (242,   0, None              , util.FilterRowset   , None              , 'typeID'),  # custom loader!
-		"schematicspinmap"           : (242,   0, None              , util.FilterRowset   , None              , 'schematicID'),  # custom loader!
-		"schematicsByPin"            : (242,   0, None              , util.FilterRowset   , None              , 'pinTypeID'),  # custom loader!
-		"ramtyperequirements"        : (242,   0, None              , dict                , None              , ('typeID', 'activityID')),
-		"ramtypematerials"           : (242, 254, None              , dict                , None              , 'typeID'),
-#		"planetattributes"           : (242,   0, None              , None                , None              , None),  # N/A
-	}
+	# bulkID         - bulkdata file ID
+	#
+	# this table is filtered for every instance to create a table dict containing only those entries relevant
+	# to its protocol version.
+
+	__tables__ = (
+#		( cfg attrib                  , (ver, del, bulkdata name     , storage class       , row class         , primary key           bulkID)),
+		("evegraphics"                , (  0,   0, "graphics"        , Recordset           , EveGraphics       , "graphicID"         , const.cacheResGraphics)),
+		("icons"                      , (242,   0, None              , Recordset           , util.Row          , 'iconID'            , const.cacheResIcons)),
+		("sounds"                     , (242,   0, None              , Recordset           , util.Row          , 'soundID'           , const.cacheResSounds)),
+
+		("invcategories"              , (  0,   0, "categories"      , Recordset           , InvCategory       , "categoryID"        , const.cacheInvCategories)),
+		("invgroups"                  , (  0,   0, "groups"          , Recordset           , InvGroup          , "groupID"           , const.cacheInvGroups)),
+		("groupsByCategories"         , (  0,   0, None              , "invgroups"         , None              , "categoryID"        , None)),
+		("invtypes"                   , (  0,   0, "types"           , Recordset           , InvType           , "typeID"            , const.cacheInvTypes)),
+		("typesByGroups"              , (  0,   0, None              , "invtypes"          , None              , "groupID"           , None)),
+		("typesByMarketGroups"        , (  0,   0, None              , "invtypes"          , None              , "marketGroupID"     , None)),
+		("invmetagroups"              , (  0,   0, "metagroups"      , Recordset           , InvMetaGroup      , "metaGroupID"       , const.cacheInvMetaGroups)),
+		("invmetatypes"               , (  0,   0, "metatypes"       , util.FilterRowset   , None              , "parentTypeID"      , const.cacheInvMetaTypes)),  # custom loader!
+		("invmetatypesByTypeID"       , (  0,   0, None              , None                , None              , None                , None)),  # custom loader!
+		("invbptypes"                 , (  0,   0, "bptypes"         , Recordset           , util.Row          , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
+		("invreactiontypes"           , (  0,   0, "invtypereactions", util.FilterRowset   , None              , "reactionTypeID"    , const.cacheInvTypeReactions)),
+		("invcontrabandTypesByFaction", (  0,   0, None              , dict                , None              , None                , None)),  # custom loader!
+		("invcontrabandTypesByType"   , (  0,   0, None              , dict                , None              , None                , None)),  # custom loader!
+		("shiptypes"                  , (  0,   0, None              , util.IndexRowset    , util.Row          , "shipTypeID"        , const.cacheShipTypes)),
+
+		("dgmattribs"                 , (  0,   0, None              , ItemsRecordset      , DgmAttribute      , "attributeID"       , const.cacheDogmaAttributes)),
+		("dgmeffects"                 , (  0,   0, None              , ItemsRecordset      , DgmEffect         , "effectID"          , const.cacheDogmaEffects)),
+		("dgmtypeattribs"             , (  0,   0, None              , util.IndexedRowLists, util.Row          , ('typeID',)         , const.cacheDogmaTypeAttributes)),
+		("dgmtypeeffects"             , (  0,   0, None              , util.IndexedRowLists, util.Row          , ('typeID',)         , const.cacheDogmaTypeEffects)),
+		("eveunits"                   , (  0,   0, "units"           , Recordset           , util.Row          , "unitID"            , const.cacheDogmaUnits)),
+
+		("ramaltypes"                 , (  0,   0, None              , Recordset           , util.Row          , "assemblyLineTypeID", const.cacheRamAssemblyLineTypes)),
+		("ramactivities"              , (  0,   0, None              , Recordset           , RamActivity       , "activityID"        , const.cacheRamActivities)),
+		("ramcompletedstatuses"       , (  0, 276, None              , Recordset           , RamCompletedStatus, "completedStatusID" , None)),
+		("ramcompletedstatuses"       , (276,   0, None              , Recordset           , RamCompletedStatus, "completedStatus"   , const.cacheRamCompletedStatuses)),
+		("ramaltypesdetailpercategory", (  0,   0, None              , util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesCategory)),
+		("ramaltypesdetailpergroup"   , (  0,   0, None              , util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesGroup)),
+
+		("billtypes"                  , (  0,   0, None              , Recordset           , Billtype          , 'billTypeID'        , const.cacheActBillTypes)),
+		("certificates"               , (  0,   0, None              , Recordset           , Certificate       , "certificateID"     , const.cacheCertificates)),
+		("certificaterelationships"   , (  0,   0, None              , Recordset           , util.Row          , "relationshipID"    , const.cacheCertificateRelationships)),
+
+		("mapcelestialdescriptions"   , (  0, 276, None              , Recordset           , MapCelestialDescription, "celestialID"  , None)),
+		("mapcelestialdescriptions"   , (276,   0, None              , Recordset           , MapCelestialDescription, "itemID"       , const.cacheMapCelestialDescriptions)),
+		("locationwormholeclasses"    , (  0,   0, None              , Recordset           , util.Row          , "locationID"        , const.cacheMapLocationWormholeClasses)),
+		("locationscenes"             , (242,   0, None              , Recordset           , util.Row          , 'locationID'        , const.cacheMapLocationScenes)),
+
+		("schematics"                 , (242,   0, None              , Recordset           , Schematic         , 'schematicID'       , const.cachePlanetSchematics)),
+		("schematicstypemap"          , (242,   0, None              , util.FilterRowset   , None              , 'schematicID'       , const.cachePlanetSchematicsTypeMap)),  # custom loader!
+		("schematicsByType"           , (242,   0, None              , util.FilterRowset   , None              , 'typeID'            , const.cachePlanetSchematicsTypeMap)),  # custom loader!
+		("schematicspinmap"           , (242,   0, None              , util.FilterRowset   , None              , 'schematicID'       , const.cachePlanetSchematicsPinMap)),  # custom loader!
+		("schematicsByPin"            , (242,   0, None              , util.FilterRowset   , None              , 'pinTypeID'         , const.cachePlanetSchematicsPinMap)),  # custom loader!
+
+		("ramtyperequirements"        , (242,   0, None              , dict                , None          , ('typeID', 'activityID'), const.cacheRamTypeRequirements)),
+		("ramtypematerials"           , (242, 254, None              , dict                , None              , 'typeID'            , None)),
+		("invtypematerials"           , (254,   0, None              , dict                , None              , 'typeID'            , const.cacheInvTypeMaterials)),
+
+		("evelocations"               , (  0,   0, "locations"       , Recordset           , EveLocations      , "locationID"        , None)),  # custom loader!
+		("factions"                   , (276,   0, None              , Recordset           , util.Row          , "factionID"         , const.cacheChrFactions)),
+		("npccorporations"            , (276,   0, None              , Recordset           , util.Row          , "corporationID"     , const.cacheCrpNpcCorporations)),
+		("eveowners"                  , (  0,   0, "owners"          , Recordset           , EveOwners         , "ownerID"           , const.cacheChrNpcCharacters)),  # custom loader!
+		("corptickernames"            , (  0,   0, "tickernames"     , Recordset           , CrpTickerNames    , "corporationID"     , const.cacheCrpTickerNamesStatic)),
+
+		# FIXME for 276+
+
+		# this seems to be gone.
+		("ownericons"                 , (242, 276, None              , Recordset           , util.Row          , 'ownerID'           , None)),
+
+		# this seems to be on-demand now, not in bulkdata.
+		("allianceshortnames"         , (  0, 276, None              , Recordset           , AllShortNames     , "allianceID"        , None)),
+#		("planetattributes"           , (242,   0, None              , None                , None              , None)),  # N/A
+	)
 
 
 	# Custom table loader methods follow
 
 	@_memoize
 	def eveowners(self):
-		rs = self._loadbulkdata("owners", Recordset, EveOwners, "ownerID")
-		self._loadbulkdata("config.StaticOwners", dest=rs)
+		if self.protocol >= 276:
+			bloodlinesToTypes = {
+				const.bloodlineDeteis   : const.typeCharacterDeteis,
+				const.bloodlineCivire   : const.typeCharacterCivire,
+				const.bloodlineSebiestor: const.typeCharacterSebiestor,
+				const.bloodlineBrutor   : const.typeCharacterBrutor,
+				const.bloodlineAmarr    : const.typeCharacterAmarr,
+				const.bloodlineNiKunni  : const.typeCharacterNiKunni,
+				const.bloodlineGallente : const.typeCharacterGallente,
+				const.bloodlineIntaki   : const.typeCharacterIntaki,
+				const.bloodlineStatic   : const.typeCharacterStatic,
+				const.bloodlineModifier : const.typeCharacterModifier,
+				const.bloodlineAchura   : const.typeCharacterAchura,
+				const.bloodlineJinMei   : const.typeCharacterJinMei,
+				const.bloodlineKhanid   : const.typeCharacterKhanid,
+				const.bloodlineVherokior: const.typeCharacterVherokior
+			}
+
+			rs = Recordset(EveOwners, 'ownerID')
+			rs.header = ['ownerID', 'ownerName', 'typeID']
+			d = rs.data
+			rd = blue.DBRowDescriptor((('ownerID', const.DBTYPE_I4), ('ownerName', const.DBTYPE_WSTR), ('typeID', const.DBTYPE_I2)))
+
+			DBRow = blue.DBRow
+			for row in self.factions:
+				id_ = row.factionID
+				d[id_] = DBRow(rd, [id_, row.factionName, const.typeFaction])
+
+			for row in self.npccorporations:
+				id_ = row.corporationID
+				d[id_] = DBRow(rd, [id_, row.corporationName, const.typeCorporation])
+
+			for row in self.cache.LoadBulk(const.cacheChrNpcCharacters):
+				id_ = row.characterID
+				d[id_] = DBRow(rd, [id_, row.characterName, bloodlinesToTypes[row.bloodlineID]])
+
+			rs.data[1] = DBRow(rd, [1, 'EVE System', 0])
+
+		else:
+			rs = self._loadbulkdata("owners", Recordset, EveOwners, "ownerID")
+			self._loadbulkdata("config.StaticOwners", dest=rs)
+
 		return rs
+
 
 	@_memoize
 	def evelocations(self):
-		rs = self._loadbulkdata("locations", Recordset, EveLocations, "locationID")
-		self._loadbulkdata("config.StaticLocations", dest=rs)
+		if self.protocol >= 276:
+			rs = Recordset(EveLocations, 'locationID')
+			rs.header = ['locationID', 'locationName', 'x', 'y', 'z']
+
+			d = rs.data
+			rd = blue.DBRowDescriptor((('locationID', const.DBTYPE_I4), ('locationName', const.DBTYPE_WSTR), ('x', const.DBTYPE_R8), ('y', const.DBTYPE_R8), ('z', const.DBTYPE_R8)))
+			DBRow = blue.DBRow
+
+			for bulkID, name in (
+				(const.cacheMapRegionsTable, "region"),
+				(const.cacheMapConstellationsTable, "constellation"),
+				(const.cacheMapSolarSystemsTable, "solarSystem"),
+			):
+				table = self.cache.LoadBulk(bulkID)
+				hdr = table.header.Keys()
+				id_ix = hdr.index(name + "ID")
+				name_ix = hdr.index(name + "Name")
+				for row in table:
+					id_ = row[id_ix]
+					d[id_] = DBRow(rd, [id_, row[name_ix], row.x, row.y, -row.z])
+		else:
+			rs = self._loadbulkdata("locations", Recordset, EveLocations, "locationID")
+			self._loadbulkdata("config.StaticLocations", dest=rs)
+
 		return rs
+
 
 	#--
 
@@ -591,7 +694,10 @@ class Config(object):
 		byFaction = self.invcontrabandTypesByFaction = {}
 		byType = self.invcontrabandFactionsByType = {}
 
-		obj = self.cache.LoadObject("config.InvContrabandTypes")
+		if self.protocol >= 276:
+			obj = self.cache.LoadBulk(const.cacheInvContrabandTypes)
+		else:
+			obj = self.cache.LoadObject("config.InvContrabandTypes")
 
 		for each in obj:
 			typeID = each.typeID
@@ -617,7 +723,11 @@ class Config(object):
 	#--
 
 	def _schematicstypemap_load(self):
-		obj = self.cache.LoadObject("config.BulkData.schematicstypemap")
+		if self.protocol >= 276:
+			obj = self.cache.LoadBulk(const.cachePlanetSchematicsTypeMap)
+		else:
+			obj = self.cache.LoadObject("config.BulkData.schematicstypemap")
+
 		header = obj.header.Keys()
 		self.schematicstypemap = util.FilterRowset(header, obj, "schematicID")
 		self.schematicsByType = util.FilterRowset(header, obj, "typeID")
@@ -635,7 +745,11 @@ class Config(object):
 	#--
 
 	def _schematicspinmap_load(self):
-		obj = self.cache.LoadObject("config.BulkData.schematicspinmap")
+		if self.protocol >= 276:
+			obj = self.cache.LoadBulk(const.cachePlanetSchematicsPinMap)
+		else:
+			obj = self.cache.LoadObject("config.BulkData.schematicspinmap")
+
 		header = obj.header.Keys()
 		self.schematicspinmap = util.FilterRowset(header, obj, "schematicID")
 		self.schematicsByPin = util.FilterRowset(header, obj, "pinTypeID")
@@ -653,7 +767,11 @@ class Config(object):
 	#--
 
 	def _invmetatypes_load(self):
-		obj = self.cache.LoadObject("config.BulkData.invmetatypes")
+		if self.protocol >= 276:
+			obj = self.cache.LoadBulk(const.cacheInvMetaTypes)
+		else:
+			obj = self.cache.LoadObject("config.BulkData.invmetatypes")
+
 		if type(obj) is tuple:
 			# old style.
 			self.invmetatypes = util.FilterRowset(obj[0], obj[1], "parentTypeID")
@@ -679,17 +797,18 @@ class Config(object):
 		self.cache = cache
 		self.callback = None
 		self.compatibility = compatibility
-		protocol = self.cache.machoVersion
+		protocol = self.protocol = self.cache.machoVersion
 
 		# Figure out the set of tables managed by this instance.
 		# Only tables that are available for this instance's particular
 		# machoNet version will be in this set, and are the only tables loaded
 		# when prime() is called.
+		self._tables = dict(((k, v) for k, v in self.__tables__ if protocol >= v[0] and protocol < v[1] or 2147483647))
 		self.tables = frozenset(( \
 			attrName for attrName in dir(self.__class__) \
 			if isinstance(getattr(self.__class__, attrName), _memoize) \
-			and protocol >= self.__tables__[attrName][0] \
-			and protocol < (self.__tables__[attrName][1] or 2147483647) \
+			and protocol >= self._tables[attrName][0] \
+			and protocol < (self._tables[attrName][1] or 2147483647) \
 		))
 		self._attrCache = {}
 
@@ -704,7 +823,7 @@ class Config(object):
 		self._attrCache = {}
 
 
-	def _loadbulkdata(self, tableName=None, storageClass=None, rowClass=None, primaryKey=None, dest=None):
+	def _loadbulkdata(self, tableName=None, storageClass=None, rowClass=None, primaryKey=None, dest=None, bulkID=None):
 
 		fullTableName = tableName if tableName.startswith("config.") else "config.BulkData."+tableName
 
@@ -712,7 +831,13 @@ class Config(object):
 			# This is hint data; just add it to the specified table (dest)
 			# Assumes dest is an IndexRowset compatible object.
 
-			obj = self.cache.LoadObject(tableName)
+
+			if self.protocol >= 276:
+				# Incarna 1.0.2 load method
+				obj = self.cache.LoadBulk(bulkID)
+			else:
+				# legacy load method
+				obj = self.cache.LoadObject(tableName)
 
 			rs = dest
 			if type(obj) is not dbutil.CRowset:
@@ -739,7 +864,12 @@ class Config(object):
 				rs = table.GroupedBy(primaryKey)
 			return rs
 
-		obj = self.cache.LoadObject(fullTableName)
+		if self.protocol >= 276:
+			# Incarna 1.0.2 load method
+			obj = self.cache.LoadBulk(bulkID)
+		else:
+			# legacy load method
+			obj = self.cache.LoadObject(fullTableName)
 
 		if issubclass(storageClass, Recordset):
 			if self.compatibility:
@@ -805,7 +935,7 @@ class Config(object):
 specified, it will load all supported ones. A callback function can be provided
 which will be called as func(current, total, tableName).
 
-		This function should be used in the following situations:
+		This method should be used in the following situations:
 		- The ConfigMgr instance is going to be used in a multi-threaded app.
 		- The Application wants to load all data at once instead of on access.
 		"""

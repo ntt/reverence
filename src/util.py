@@ -187,7 +187,7 @@ class IndexRowset(Rowset):
 		if dict is None:
 			self.items = {}
 			self.key = ki
-			for line in lines:
+			for line in self.lines:
 				self.items[line[ki]] = line
 		else:
 			self.items = dict

@@ -26,25 +26,27 @@ _urga = util.Row.__getattr__
 
 class RecordsetIterator(object):
 	def next(self):
-		return self.rowset.rowclass(self.rowset, self.iter.next())
+		return self.rowset.rowclass(self.rowset.header, self.iter.next(), self.rowset.cfg)
+
 
 class Recordset(object):
-	def __init__(self, rowclass, keycolumn):
+	def __init__(self, rowclass, keycolumn, cfgInstance=None):
 		self.rowclass = rowclass
 		self.keycolumn = keycolumn
 		self.header = {}
 		self.data = {}
+		self.cfg = cfgInstance
 
 	def Get(self, *args):
-		return self.data.get(*args)
+		return self.rowclass(self.header, self.data.get(*args), self.cfg)
 
 	def GetIfExists(self, *args):
-		return self.data.get(*args)
+		return self.rowclass(self.header, self.data.get(*args), self.cfg)
 
 	def __iter__(self):
 		it = RecordsetIterator()
 		it.rowset = self
-		it.iter = self.data.iterkeys()
+		it.iter = self.data.itervalues()
 		return it
 
 	def __contains__(self, key):
@@ -598,6 +600,7 @@ class Config(object):
 		("npccorporations"            , (276,   0, None              , Recordset           , util.Row          , "corporationID"     , const.cacheCrpNpcCorporations)),
 		("eveowners"                  , (  0,   0, "owners"          , Recordset           , EveOwners         , "ownerID"           , const.cacheChrNpcCharacters)),  # custom loader!
 		("corptickernames"            , (  0,   0, "tickernames"     , Recordset           , CrpTickerNames    , "corporationID"     , const.cacheCrpTickerNamesStatic)),
+#		("planetattributes"           , (242,   0, None              , None                , None              , None)),  # N/A
 
 		# FIXME for 276+
 
@@ -606,7 +609,6 @@ class Config(object):
 
 		# this seems to be on-demand now, not in bulkdata.
 		("allianceshortnames"         , (  0, 276, None              , Recordset           , AllShortNames     , "allianceID"        , None)),
-#		("planetattributes"           , (242,   0, None              , None                , None              , None)),  # N/A
 	)
 
 
@@ -632,9 +634,14 @@ class Config(object):
 				const.bloodlineVherokior: const.typeCharacterVherokior
 			}
 
-			rs = Recordset(EveOwners, 'ownerID')
-			rs.header = ['ownerID', 'ownerName', 'typeID']
-			d = rs.data
+			if self.compatibility:
+				rs = Recordset(EveOwners, 'ownerID', self)
+				rs.header = ['ownerID', 'ownerName', 'typeID']
+				d = rs.data
+			else:
+				rs = util.IndexRowset(['ownerID', 'ownerName', 'typeID'], None, key="ownerID", RowClass=EveOwners, cfgInstance=self)
+				d = rs.items
+
 			rd = blue.DBRowDescriptor((('ownerID', const.DBTYPE_I4), ('ownerName', const.DBTYPE_WSTR), ('typeID', const.DBTYPE_I2)))
 
 			DBRow = blue.DBRow
@@ -650,7 +657,7 @@ class Config(object):
 				id_ = row.characterID
 				d[id_] = DBRow(rd, [id_, row.characterName, bloodlinesToTypes[row.bloodlineID]])
 
-			rs.data[1] = DBRow(rd, [1, 'EVE System', 0])
+			d[1] = DBRow(rd, [1, 'EVE System', 0])
 
 		else:
 			rs = self._loadbulkdata("owners", Recordset, EveOwners, "ownerID")
@@ -662,10 +669,14 @@ class Config(object):
 	@_memoize
 	def evelocations(self):
 		if self.protocol >= 276:
-			rs = Recordset(EveLocations, 'locationID')
-			rs.header = ['locationID', 'locationName', 'x', 'y', 'z']
+			if self.compatibility:
+				rs = Recordset(EveLocations, 'locationID', self)
+				rs.header = ['locationID', 'locationName', 'x', 'y', 'z']
+				d = rs.data
+			else:
+				rs = util.IndexRowset(['locationID', 'locationName', 'x', 'y', 'z'], None, key="locationID", RowClass=EveLocations, cfgInstance=self)
+				d = rs.items
 
-			d = rs.data
 			rd = blue.DBRowDescriptor((('locationID', const.DBTYPE_I4), ('locationName', const.DBTYPE_WSTR), ('x', const.DBTYPE_R8), ('y', const.DBTYPE_R8), ('z', const.DBTYPE_R8)))
 			DBRow = blue.DBRow
 
@@ -874,18 +885,19 @@ class Config(object):
 		if issubclass(storageClass, Recordset):
 			if self.compatibility:
 				# use the Recordsets like EVE, for compatibility (don't ask).
-				dest = storageClass(rowClass, primaryKey)
-				data = dest.data
+
+				rs = storageClass(rowClass, primaryKey, self)
+				data = rs.data
 
 				if type(obj) is dbutil.CRowset:
-					dest.header = obj.header.Keys()
-					keycol = dest.header.index(primaryKey)
+					rs.header = obj.header.Keys()
+					keycol = rs.header.index(primaryKey)
 					for i in obj:
 						a = list(i)
 						data[a[keycol]] = a
 				else:
-					dest.header = obj[0]            
-					keycol = dest.header.index(primaryKey)
+					rs.header = obj[0]
+					keycol = rs.header.index(primaryKey)
 					for i in obj[1]:
 						data[i[keycol]] = i
 			else:
@@ -968,7 +980,7 @@ which will be called as func(current, total, tableName).
 					current += 1
 
 				if debug:
-					print "  priming:", tableName
+					print >>sys.stderr, "  priming:", tableName
 				# now simply trigger the property's getters
 				getattr(self, tableName)
 

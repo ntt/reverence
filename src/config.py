@@ -663,6 +663,7 @@ class Config(object):
 			rs = self._loadbulkdata("owners", Recordset, EveOwners, "ownerID")
 			self._loadbulkdata("config.StaticOwners", dest=rs)
 
+		rs.lines = rs.items.values()
 		return rs
 
 
@@ -696,6 +697,7 @@ class Config(object):
 			rs = self._loadbulkdata("locations", Recordset, EveLocations, "locationID")
 			self._loadbulkdata("config.StaticLocations", dest=rs)
 
+		rs.lines = rs.items.values()
 		return rs
 
 

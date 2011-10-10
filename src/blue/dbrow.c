@@ -605,35 +605,38 @@ PyTypeObject PyDBRowDescriptor_Type = {
 static PyObject *
 dbrow_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
+	// WARNING: DBRows are not intended to be instantiated by users. There
+	// is no validation on the initialization params, nor are their types
+	// checked against the column descriptors. Incorrect use will likely
+	// result in a crash.
+
 	int i, offset;
 	PyDBRowObject *row;
 	PyDBRowDescriptorObject *header;
 
-	if(PyTuple_GET_SIZE(args) != 2)
+	if(PyTuple_GET_SIZE(args) < 1 || PyTuple_GET_SIZE(args) > 2)
 	{
-		PyErr_SetString(PyExc_TypeError, "expected 2 arguments");
+		PyErr_SetString(PyExc_TypeError, "expected 1 or 2 arguments");
 		return NULL;
 	}
 
 	header = (PyDBRowDescriptorObject *)PyTuple_GetItem(args, 0);
 	row = (PyDBRowObject *)PyDBRow_New(header, "", 0);
 
-	// WARNING: DBRows are not intended to be instantiated by users. There
-	// is no validation on the initialization params, nor are their types
-	// checked against the column descriptors. Incorrect use will likely
-	// result in a crash.
+	if(PyTuple_GET_SIZE(args) == 2)
+	{
+		// zero out the objects array, otherwise setToCD will bomb on it.
+		offset = ALIGNED(header->rd_unpacked_size);
+		row->ob_size = header->rd_num_objects;
+		for(i=0; i<row->ob_size; i++)
+			*(PyObject **)(&row->dbrow_data[offset + i * PTRSIZE]) = NULL;
 
-	args = PyTuple_GetItem(args, 1);  // assumed to be a list or tuple.
+		args = PyTuple_GetItem(args, 1);  // assumed to be a list or tuple.
 
-	// zero out the objects array, otherwise setToCD will bomb on it.
-	offset = ALIGNED(header->rd_unpacked_size);
-	row->ob_size = header->rd_num_objects;
-	for(i=0; i<row->ob_size; i++)
-		*(PyObject **)(&row->dbrow_data[offset + i * PTRSIZE]) = NULL;
-
-	// now populate the row data with the init args
-	for(i=0; i < header->ob_size; i++)
-		setToCD(row, &header->rd_cd[i], PyList_GET_ITEM(args, i));
+		// now populate the row data with the init args
+		for(i=0; i < header->ob_size; i++)
+			setToCD(row, &header->rd_cd[i], PyList_GET_ITEM(args, i));
+	}
 
 	return (PyObject *)row;
 }

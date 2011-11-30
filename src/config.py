@@ -602,6 +602,7 @@ class Config(object):
 		("npccorporations"            , (276,   0, None              , Recordset           , util.Row          , "corporationID"     , const.cacheCrpNpcCorporations)),
 		("eveowners"                  , (  0,   0, "owners"          , Recordset           , EveOwners         , "ownerID"           , const.cacheChrNpcCharacters)),  # custom loader!
 		("corptickernames"            , (  0,   0, "tickernames"     , Recordset           , CrpTickerNames    , "corporationID"     , const.cacheCrpTickerNamesStatic)),
+		("stations"                   , (299,   0, None              , Recordset           , util.Row          , 'stationID'         , const.cacheStaStationsStatic)),
 
 #		("planetattributes"           , (242,   0, None              , None                , None              , None)),  # N/A
 
@@ -612,6 +613,13 @@ class Config(object):
 
 		# this seems to be on-demand now, not in bulkdata.
 		("allianceshortnames"         , (  0, 276, None              , Recordset           , AllShortNames     , "allianceID"        , None)),
+
+		# location stuff.
+		("regions"                    , (299,   0, None              , Recordset           , util.Row          , "regionID"          , const.cacheMapRegionsTable)),
+		("constellations"             , (299,   0, None              , Recordset           , util.Row          , "constellationID"   , const.cacheMapConstellationsTable)),
+		("solarsystems"               , (299,   0, None              , Recordset           , util.Row          , "solarSystemID"     , const.cacheMapSolarSystemsTable)),
+		("stations"                   , (299,   0, None              , Recordset           , util.Row          , "stationID"         , const.cacheStaStationsStatic)),
+		("evelocations"               , (  0,   0, "locations"       , Recordset           , EveLocations      , "locationID"        , None)),  # custom loader!
 	)
 
 	# Custom table loader methods follow
@@ -683,16 +691,16 @@ class Config(object):
 			rd = blue.DBRowDescriptor((('locationID', const.DBTYPE_I4), ('locationName', const.DBTYPE_WSTR), ('x', const.DBTYPE_R8), ('y', const.DBTYPE_R8), ('z', const.DBTYPE_R8)))
 			DBRow = blue.DBRow
 
-			for bulkID, name in (
-				(const.cacheMapRegionsTable, "region"),
-				(const.cacheMapConstellationsTable, "constellation"),
-				(const.cacheMapSolarSystemsTable, "solarSystem"),
+			for table, name in (
+				(self.regions, "region"),
+				(self.constellations, "constellation"),
+				(self.solarsystems, "solarSystem"),
+				(self.stations, "station"),
 			):
-				table = self.cache.LoadBulk(bulkID)
-				hdr = table.header.Keys()
+				hdr = table.header
 				id_ix = hdr.index(name + "ID")
 				name_ix = hdr.index(name + "Name")
-				for row in table:
+				for row in table.lines:
 					id_ = row[id_ix]
 					d[id_] = DBRow(rd, [id_, row[name_ix], row.x, row.y, -row.z])
 		else:
@@ -734,6 +742,7 @@ class Config(object):
 	def invcontrabandTypesByType(self):
 		self._invcontrabandtypes_load()
 		return self.invcontrabandFactionsByType
+
 
 	#--
 
@@ -829,6 +838,8 @@ class Config(object):
 
 
 	def release(self):
+		# purge all loaded tables
+
 		for tableName in self.tables:
 			try:
 				delattr(self, tableName)

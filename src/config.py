@@ -541,8 +541,8 @@ class Config(object):
 	#
 	# this table is filtered for every instance to create a table dict containing only those entries relevant
 	# to its protocol version.
-
 	__tables__ = (
+
 #		( cfg attrib                  , (ver, del, bulkdata name     , storage class       , row class         , primary key           bulkID)),
 		("evegraphics"                , (  0,   0, "graphics"        , Recordset           , EveGraphics       , "graphicID"         , const.cacheResGraphics)),
 		("icons"                      , (242,   0, None              , Recordset           , util.Row          , 'iconID'            , const.cacheResIcons)),
@@ -567,6 +567,8 @@ class Config(object):
 		("dgmeffects"                 , (  0,   0, None              , ItemsRecordset      , DgmEffect         , "effectID"          , const.cacheDogmaEffects)),
 		("dgmtypeattribs"             , (  0,   0, None              , util.IndexedRowLists, util.Row          , ('typeID',)         , const.cacheDogmaTypeAttributes)),
 		("dgmtypeeffects"             , (  0,   0, None              , util.IndexedRowLists, util.Row          , ('typeID',)         , const.cacheDogmaTypeEffects)),
+		("dgmexpressions"             , (297,   0, None              , Recordset           , util.Row          , 'expressionID'      , const.cacheDogmaExpressions)),
+
 		("eveunits"                   , (  0,   0, "units"           , Recordset           , util.Row          , "unitID"            , const.cacheDogmaUnits)),
 
 		("ramaltypes"                 , (  0,   0, None              , Recordset           , util.Row          , "assemblyLineTypeID", const.cacheRamAssemblyLineTypes)),
@@ -583,7 +585,7 @@ class Config(object):
 		("mapcelestialdescriptions"   , (  0, 276, None              , Recordset           , MapCelestialDescription, "celestialID"  , None)),
 		("mapcelestialdescriptions"   , (276,   0, None              , Recordset           , MapCelestialDescription, "itemID"       , const.cacheMapCelestialDescriptions)),
 		("locationwormholeclasses"    , (  0,   0, None              , Recordset           , util.Row          , "locationID"        , const.cacheMapLocationWormholeClasses)),
-		("locationscenes"             , (242,   0, None              , Recordset           , util.Row          , 'locationID'        , const.cacheMapLocationScenes)),
+		("locationscenes"             , (242, 298, None              , Recordset           , util.Row          , 'locationID'        , const.cacheMapLocationScenes)),
 
 		("schematics"                 , (242,   0, None              , Recordset           , Schematic         , 'schematicID'       , const.cachePlanetSchematics)),
 		("schematicstypemap"          , (242,   0, None              , util.FilterRowset   , None              , 'schematicID'       , const.cachePlanetSchematicsTypeMap)),  # custom loader!
@@ -600,6 +602,7 @@ class Config(object):
 		("npccorporations"            , (276,   0, None              , Recordset           , util.Row          , "corporationID"     , const.cacheCrpNpcCorporations)),
 		("eveowners"                  , (  0,   0, "owners"          , Recordset           , EveOwners         , "ownerID"           , const.cacheChrNpcCharacters)),  # custom loader!
 		("corptickernames"            , (  0,   0, "tickernames"     , Recordset           , CrpTickerNames    , "corporationID"     , const.cacheCrpTickerNamesStatic)),
+
 #		("planetattributes"           , (242,   0, None              , None                , None              , None)),  # N/A
 
 		# FIXME for 276+
@@ -610,7 +613,6 @@ class Config(object):
 		# this seems to be on-demand now, not in bulkdata.
 		("allianceshortnames"         , (  0, 276, None              , Recordset           , AllShortNames     , "allianceID"        , None)),
 	)
-
 
 	# Custom table loader methods follow
 
@@ -851,6 +853,9 @@ class Config(object):
 			else:
 				# legacy load method
 				obj = self.cache.LoadObject(tableName)
+
+			if not obj:
+				raise RuntimeError("table '%s' (%d) not found in bulkdata" % (tableName, bulkID))
 
 			rs = dest
 			if type(obj) is not dbutil.CRowset:

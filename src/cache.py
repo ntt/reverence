@@ -180,11 +180,13 @@ class CacheMgr:
 				continue
 
 			machopath = os.path.join(cachepath, "MachoNet", serverip)
+			bulkcpath = os.path.join(cachepath, "bulkdata")
 
 			if machoversion > -1:
 				# machoversion was specified, so look for just that.
 				machocachepath = os.path.join(machopath, str(machoversion))
-				if os.path.exists(machocachepath):
+				bulkdatapath = os.path.join(bulkcpath, str(machoversion))
+				if os.path.exists(machocachepath) or os.path.exists(bulkdatapath):
 					protocol = machoversion
 				else:
 					machonotfound = True
@@ -193,10 +195,12 @@ class CacheMgr:
 				# machoversion not specified, find highest.
 				protocol = -1
 
-				for dirName in glob.glob(os.path.join(machopath, "*")):
-					candidate = os.path.basename(dirName)
-					if candidate.isdigit():
-						protocol = max(protocol, int(candidate))
+				# look in cache/MachoNet as well as cache/bulkdata
+				for scandir in (machopath, bulkcpath):
+					for dirName in glob.glob(os.path.join(scandir, "*")):
+						candidate = os.path.basename(dirName)
+						if candidate.isdigit():
+							protocol = max(protocol, int(candidate))
 
 				if protocol == -1:
 					machonotfound = True

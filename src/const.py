@@ -2838,15 +2838,18 @@ singletonBlueprintCopy = 2
 
 
 cacheEosNpcToNpcStandings = 109998
-cacheTutContextHelp = 209999
+cacheAutAffiliates = 109997
+cacheAutCdkeyTypes = 109996
 cacheTutCategories = 200006
 cacheTutCriterias = 200003
 cacheTutTutorials = 200001
 cacheTutActions = 200009
 cacheDungeonArchetypes = 300001
 cacheDungeonDungeons = 300005
+cacheDungeonEntityGroupTypes = 300004
 cacheDungeonEventMessageTypes = 300017
 cacheDungeonEventTypes = 300015
+cacheDungeonSpawnpoints = 300012
 cacheDungeonTriggerTypes = 300013
 cacheInvCategories = 600001
 cacheInvContrabandTypes = 600008
@@ -2874,10 +2877,9 @@ cacheMapSolarSystemLoadRatios = 1409996
 cacheLocationWormholeClasses = 1409994
 cacheMapPlanets = 1409993
 cacheMapSolarSystemJumpIDs = 1409992
-cacheMapSolarSystemPseudoSecurities = 1409991
 cacheMapTypeBalls = 1400001
 cacheMapCelestialDescriptions = 1400008
-cacheMapLocationScenes = 1400006
+cacheMapNebulas = 1400016
 cacheMapLocationWormholeClasses = 1400002
 cacheMapRegionsTable = 1400009
 cacheMapConstellationsTable = 1400010
@@ -2887,6 +2889,7 @@ cacheNpcCommands = 1600005
 cacheNpcDirectorCommandParameters = 1600007
 cacheNpcDirectorCommands = 1600006
 cacheNpcLootTableFrequencies = 1600004
+cacheNpcCommandParameters = 1600008
 cacheNpcTypeGroupingClassSettings = 1600016
 cacheNpcTypeGroupingClasses = 1600015
 cacheNpcTypeGroupingTypes = 1600017
@@ -2916,6 +2919,7 @@ cacheStaSIDServiceMask = 2209991
 cacheStaStationImprovementTypes = 2209990
 cacheStaStationUpgradeTypes = 2209989
 cacheStaStations = 2209988
+cacheStaStationsStatic = 2209987
 cacheMktOrderStates = 2409999
 cacheMktNpcMarketData = 2400001
 cacheCrpRoles = 2809999
@@ -2965,6 +2969,7 @@ cacheChrFactions = 3200015
 cacheChrDefaultOverviews = 3200011
 cacheChrDefaultOverviewGroups = 3200012
 cacheChrNpcCharacters = 3200016
+cacheUserEspTagTypes = 4309999
 cacheFacWarCombatZoneSystems = 4500006
 cacheFacWarCombatZones = 4500005
 cacheActBillTypes = 6400004
@@ -2987,6 +2992,16 @@ cacheMapDistricts = 100300014
 cacheMapBattlefields = 100300015
 cacheMapLevels = 100300020
 cacheMapOutposts = 100300022
+cacheMapLandmarks = 100300023
+cacheEspCorporations = 1
+cacheEspAlliances = 2
+cacheEspSolarSystems = 3
+cacheSolarSystemObjects = 4
+cacheCargoContainers = 5
+cachePriceHistory = 6
+cacheTutorialVersions = 7
+cacheSolarSystemOffices = 8
+
 
 cacheResGraphics = 2001800001
 cacheResSounds = 2001800002
@@ -3000,6 +3015,10 @@ cacheCargoContainers = 5
 cachePriceHistory = 6
 cacheTutorialVersions = 7
 cacheSolarSystemOffices = 8
+
+
+cacheMapLocationScenes = 1400006  # deprecated, here for backwards compatibility
+
 
 DBTYPE_I2 = 2
 DBTYPE_I4 = 3

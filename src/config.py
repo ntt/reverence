@@ -602,7 +602,6 @@ class Config(object):
 		("npccorporations"            , (276,   0, None              , Recordset           , util.Row          , "corporationID"     , const.cacheCrpNpcCorporations)),
 		("eveowners"                  , (  0,   0, "owners"          , Recordset           , EveOwners         , "ownerID"           , const.cacheChrNpcCharacters)),  # custom loader!
 		("corptickernames"            , (  0,   0, "tickernames"     , Recordset           , CrpTickerNames    , "corporationID"     , const.cacheCrpTickerNamesStatic)),
-		("stations"                   , (299,   0, None              , Recordset           , util.Row          , 'stationID'         , const.cacheStaStationsStatic)),
 
 #		("planetattributes"           , (242,   0, None              , None                , None              , None)),  # N/A
 

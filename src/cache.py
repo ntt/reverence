@@ -56,7 +56,9 @@ def _findcachepath(root, servername, wineprefix):
 		# slightly less untested. might still be wrong.
 		home = os.path.expanduser('~')
 		cacheFolderName = "c_program_files_ccp_eve_" + servername.lower()
-		cachepath = os.path.join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
+		cachepath = os.path.join(home, "Library/Application Support/EVE Online/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
+		if not os.path.exists(cachepath):
+			cachepath = os.path.join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
 		actualroot = os.path.join(root, "Contents/Resources/transgaming/c_drive/Program Files/CCP/EVE")
 		if os.path.exists(actualroot):
 			root = actualroot

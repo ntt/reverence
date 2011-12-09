@@ -362,6 +362,14 @@ class CacheMgr:
 		return fileName, obj
 
 
+	def findbulk(self, bulkID):
+		"""Locates bulkdata file by ID."""
+		for folder in [self.BULK_CACHE_PATH, self.BULK_SYSTEM_PATH]:
+			cacheName = os.path.join(folder, str(bulkID)+".cache2")
+			if os.path.exists(cacheName):
+				return cacheName
+
+
 	def GetConfigMgr(self, *args, **kw):
 		"""Returns a ConfigMgr instance associated with this CacheMgr."""
 		if not self.cfg:

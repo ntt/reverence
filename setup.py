@@ -28,7 +28,7 @@ setup(
 
 	url = "http://github.com/ntt/reverence",
 
-	version = "1.4.0",
+	version = "1.4.1",
 
 	description = "Interface to EVE Online resources",
 

@@ -10,22 +10,6 @@ included with the distribution).
 from ._blue import marshal, DBRow, DBRowDescriptor
 from . import cache, _os as os, _blue
 
-
-try:
-	from . import marshal_writer
-	marshal.Save = marshal_writer.Save
-	del marshal_writer
-except ImportError:
-	def Oops(*arg, **kw):
-		raise RuntimeError("Save function requires marshal_writer module")
-	marshal.Save = Oops
-
-try:
-	from . import _dotblue
-except ImportError:
-	_dotblue = None
-
-
 import sys
 from time import sleep as _sleep
 
@@ -72,19 +56,10 @@ class _ResFile(object):
 
 
 class _Rot(object):
-
 	def __init__(self, eve):
 		from . import embedfs
 		self.eve = eve
 		self.efs = embedfs.EmbedFSDirectory(eve.root)
-
-	def GetCopy(self, filename):
-		if _dotblue:
-			f = _ResFile(self)
-			f.Open(filename)
-			return _dotblue.Load(f.fh)
-		else:
-			raise RuntimeError("GetCopy method requires _dotblue module")
 
 
 # offline RemoteSvc wrappers
@@ -97,6 +72,7 @@ class _RemoteSvcWrap(object):
 	def __getattr__(self, methodName):
 		return _RemoteSvcMethod(self.eve, self.svcName, methodName)
 
+
 class _RemoteSvcMethod(object):
 	def __init__(self, eve, svcName, methodName):
 		self.eve = eve
@@ -107,6 +83,7 @@ class _RemoteSvcMethod(object):
 		key = (self.svcName, self.methodName) + args
 		obj = self.eve.cache.LoadCachedMethodCall(key)
 		return obj['lret']
+
 
 ResFile = None
 

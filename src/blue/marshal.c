@@ -244,11 +244,17 @@ find_global(PyObject *pyname)
 
 	// we should have the requested object now. if not, tough luck.
 	if(!obj)
+	{
+		PyErr_Format(PyExc_RuntimeError, "find_global failed to resolve: %s", name);
 		return NULL;
+	}
 
 	// now store the result in cache so subsequent requests for this object are faster.
 	if(PyDict_SetItem(global_cache, pyname, obj))
+	{
+		PyErr_SetString(PyExc_RuntimeError, "globals caching failure");
 		return NULL;
+	}
 
 	return obj;
 }
@@ -696,8 +702,14 @@ tuple:
 			if(!name)
 				goto cleanup;
 			s += length;
-			obj = find_global(name);
+			if(!(obj = find_global(name)))
+			{
+				// exception should be set by find_global
+				goto cleanup;
+			}
+
 			Py_DECREF(name);
+
 			CHECK_SHARED(obj);
 			break;
 		}

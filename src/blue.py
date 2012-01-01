@@ -7,11 +7,26 @@ it under the terms of the BSD license (see the file LICENSE.txt
 included with the distribution).
 """
 
-from ._blue import marshal, DBRow, DBRowDescriptor
-from . import cache, _os as os, _blue
-
+import __builtin__
 import sys
 from time import sleep as _sleep
+
+from ._blue import marshal, DBRow, DBRowDescriptor
+from . import exceptions, cache, _os as os, _blue
+
+__all__ = ["EVE", "marshal", "os", "pyos", "DBRow", "DBRowDescriptor"]
+
+
+# Little hack to have our exceptions look pretty when raised; instead of
+#   "reverence.blue.marshal.UnmarshalError: not enough kittens!"
+# it will look like
+#   "UnmarshalError: not enough kittens!"
+# Yes I know this is not naughty, but EVE presents them like this as well ;)
+marshal.UnmarshalError.__module__ = None
+
+# and because the exception class is accessible like this in EVE ...
+exceptions.UnmarshalError = exceptions.SQLError = __builtin__.UnmarshalError = marshal.UnmarshalError
+
 
 class pyos:
 	class synchro:
@@ -107,7 +122,7 @@ class EVE(object):
 		self.cache = cache.CacheMgr(self.root, self.server, machoVersion, cachepath, wineprefix)
 		self.machoVersion = self.cache.machoVersion
 
-		self.cfg = self.cache.GetConfigMgr(compatibility=compatibility)
+		self.cfg = self.cache.getconfigmgr(compatibility=compatibility)
 
 		# hack to make blue.ResFile() work. This obviously means that
 		# when using multiple EVE versions, only the latest will be accessible
@@ -184,10 +199,4 @@ _blue.dbrow_str = dbrow_str
 marshal._set_find_global_func(_find_global)
 marshal._set_debug_func(_debug)
 _readstringstable()
-
-
-
-
-
-__all__ = ["EVE", "marshal", "os", "pyos", "DBRow", "DBRowDescriptor"]
 

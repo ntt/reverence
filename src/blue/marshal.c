@@ -33,6 +33,8 @@ PyObject *find_global_func = NULL;
 PyObject *debug_func = NULL;
 PyObject *string_table = NULL;
 
+PyObject *UnmarshalError = NULL;
+
 // some frequently used python strings
 PyObject *py__new__ = NULL;
 PyObject *py__setstate__ = NULL;
@@ -89,7 +91,7 @@ void DEBUG(char *text)
 {\
 	if(shared) {\
 		if(shared_count >= shared_mapsize) {\
-			PyErr_Format(PyExc_RuntimeError, "Shared object table overflow, mapsize:%d", shared_mapsize);\
+			PyErr_Format(UnmarshalError, "Shared object table overflow, mapsize:%d", shared_mapsize);\
 			goto cleanup;\
 		}\
 		_store = shared_map[shared_count++];\
@@ -167,7 +169,7 @@ find_global(PyObject *pyname)
 
 	if(!PyString_Check(pyname))
 	{
-		PyErr_SetString(PyExc_RuntimeError, "expected string");
+		PyErr_SetString(UnmarshalError, "expected string");
 		return NULL;
 	}
 
@@ -245,7 +247,7 @@ find_global(PyObject *pyname)
 	// we should have the requested object now. if not, tough luck.
 	if(!obj)
 	{
-		PyErr_Format(PyExc_RuntimeError, "find_global failed to resolve: %s", name);
+		PyErr_Format(UnmarshalError, "find_global failed to resolve: %s", name);
 		return NULL;
 	}
 
@@ -409,7 +411,7 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 	// Security Check: assert there is enough data for that many items.
 	if((5 + shared_mapsize*4) > size) 
 	{
-		PyErr_Format(PyExc_RuntimeError, "Not enough room in stream for map. Wanted %d, but have only %d bytes remaining...", (shared_mapsize*4), ((int)size-5));
+		PyErr_Format(UnmarshalError, "Not enough room in stream for map. Wanted %d, but have only %d bytes remaining...", (shared_mapsize*4), ((int)size-5));
 		goto cleanup;
 	}
 
@@ -421,7 +423,7 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 	{
 		if( (shared_map[i] > shared_mapsize) || (shared_map[i] < 1) )
 		{
-			PyErr_SetString(PyExc_RuntimeError, "Bogus map data in marshal stream");
+			PyErr_SetString(UnmarshalError, "Bogus map data in marshal stream");
 			goto cleanup;
 		}
 	}
@@ -550,7 +552,7 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 			if (length < 1 || length >= PyList_GET_SIZE(string_table))
 			{
 				if(PyList_GET_SIZE(string_table))
-					PyErr_Format(PyExc_RuntimeError, "Invalid string table index %d", (int)length);
+					PyErr_Format(UnmarshalError, "Invalid string table index %d", (int)length);
 				else
 					PyErr_SetString(PyExc_RuntimeError, "_stringtable not initialized");
 				goto cleanup;
@@ -1023,7 +1025,7 @@ if(obj && obj->ob_refcnt < 0)
 	error = "Not enough objects in stream";
 
 fail:
-	PyErr_Format(PyExc_RuntimeError, "%s - type:0x%02x ctype:0x%02x len:%d share:%d pos:%d size:%d", error, type, container->type, (int)length, shared, (int)(s-stream), (int)(size));
+	PyErr_Format(UnmarshalError, "%s - type:0x%02x ctype:0x%02x len:%d share:%d pos:%d size:%d", error, type, container->type, (int)length, shared, (int)(s-stream), (int)(size));
 
 cleanup:
 	// on any error the current object we were working on will be unassociated
@@ -1064,7 +1066,6 @@ marshal_Load(PyObject *self, PyObject *args, PyObject *kwds)
 	PyObject *py_stream;
 	PyObject *py_callback = NULL;
 	PyObject *result;
-
 
 	int skipcrc = 0;
 
@@ -1186,9 +1187,11 @@ init_marshal(void)
 		goto fail;
 	if(!(string_table = PyList_New(0)))
 		goto fail;
+	if(!(UnmarshalError = PyErr_NewException("reverence.blue.marshal.UnmarshalError", NULL, NULL)))
+		goto fail;
 
 	PyModule_AddObject(m, "_stringtable", (PyObject*)string_table);
-
+	PyModule_AddObject(m, "UnmarshalError", UnmarshalError);
 
 #if MARSHAL_DEBUG
 	tokenname[TYPE_NONE] = "NONE";
@@ -1243,5 +1246,6 @@ fail:
 	Py_XDECREF(pyappend);
 	Py_XDECREF(global_cache);
 	Py_XDECREF(string_table);
+	Py_XDECREF(UnmarshalError);
 	return 0;
 }

@@ -7,6 +7,8 @@ it under the terms of the BSD license (see the file LICENSE.txt
 included with the distribution).
 """
 
+from __future__ import with_statement
+
 import sys
 import os
 import glob
@@ -16,9 +18,9 @@ import cPickle
 import binascii
 
 from . import config
+from . import _blue as blue  # can't simply import blue (circular import). only using marshal anyway.
 
-# can't simply import blue (circular import). only using marshal anyway.
-from . import _blue as blue
+__all__ = ["GetCacheFileName", "CacheMgr"]
 
 
 def GetCacheFileName(key, machoVersion=99999):
@@ -35,6 +37,11 @@ def GetCacheFileName(key, machoVersion=99999):
 	#	return blue.marshal.Save(key).encode("hex") + ".cache"
 	else:
 		raise RuntimeError("machoNet version 213 or higher required")
+
+
+def _readfile(filename):
+	with open(filename, "rb") as f:
+		return f.read()
 
 
 def _findcachepath(root, servername, wineprefix):
@@ -233,6 +240,8 @@ class CacheMgr:
 
 	def LoadCacheFolder(self, name, filter="*.cache"):
 		"""Loads all .cache files from specified folder. Returns a dict keyed on object name."""
+
+		# Note that this method was intended mainly for debugging and testing.
 		crap = {}
 		if self.machoVersion > 181 and name.lower() == "bulkdata":
 			name = self.bulkdatapath
@@ -240,7 +249,7 @@ class CacheMgr:
 			name = os.path.join(self.machocachepath, name)
 		for filename in glob.glob(os.path.join(name, filter)):
 			try:
-				what, obj = blue.marshal.Load(open(filename,"rb").read())
+				what, obj = blue.marshal.Load(_readfile(filename))
 				crap[what] = obj
 			except RuntimeError:  # todo: make proper UnmarshalError exception class
 				# ignore files that cannot be decoded.
@@ -252,7 +261,7 @@ class CacheMgr:
 	def LoadCachedMethodCall(self, key):
 		"""Loads a named object from EVE's CachedMethodCalls folder."""
 		name = os.path.join(self.machocachepath, "CachedMethodCalls", self.GetCacheFileName(key))
-		what, obj = blue.marshal.Load(open(name, "rb").read())
+		what, obj = blue.marshal.Load(_readfile(name))
 		if what != key:
 			# Oops. We did not get what we asked for...
 			raise RuntimeError("Hash collision: Wanted '%s' but got '%s'" % (key, what))
@@ -263,7 +272,7 @@ class CacheMgr:
 		"""Loads a named object from EVE's CachedObjects folder."""
 		fileName = self.GetCacheFileName(key)
 		name = os.path.join(self.machocachepath, "CachedObjects", fileName)
-		what, obj = blue.marshal.Load(open(name, "rb").read())
+		what, obj = blue.marshal.Load(_readfile(name))
 		if what != key:
 			# Oops. We did not get what we asked for...
 			raise RuntimeError("Hash collision: Wanted '%s' but got '%s'" % (key, what))
@@ -277,7 +286,7 @@ class CacheMgr:
 			cacheName = os.path.join(folder, str(bulkID)+".cache2")
 			if os.path.exists(cacheName):
 				# No version check required with CCP's new system.
-				return blue.marshal.Load(open(cacheName, "rb").read())
+				return blue.marshal.Load(_readfile(cacheName))
 
 
 	def LoadObject(self, key):
@@ -298,7 +307,7 @@ class CacheMgr:
 			os.path.join(self.bulkdatapath, fileName),
 		]:
 			if os.path.exists(cacheName):
-				blurb = open(cacheName, "rb").read()
+				blurb = _readfile(cacheName)
 				_t = time.clock()
 				what, obj2 = blue.marshal.Load(blurb)
 				self._time_load += (time.clock() - _t)
@@ -349,7 +358,7 @@ class CacheMgr:
 			os.path.join(self.machocachepath, "MethodCallCachingDetails", fileName),
 		]:
 			if os.path.exists(cacheName):
-				blurb = open(cacheName, "rb").read()
+				blurb = _readfile(cacheName)
 				_t = time.clock()
 				what, obj2 = blue.marshal.Load(blurb)
 				self._time_load += (time.clock() - _t)
@@ -370,14 +379,10 @@ class CacheMgr:
 				return cacheName
 
 
-	def GetConfigMgr(self, *args, **kw):
+	def getconfigmgr(self, *args, **kw):
 		"""Returns a ConfigMgr instance associated with this CacheMgr."""
 		if not self.cfg:
 			self.cfg = config.Config(self, *args, **kw)
 
 		return self.cfg
-
-
-
-__all__ = ["GetCacheFileName", "CacheMgr"]
 

@@ -18,6 +18,7 @@ Parts of code inspired by or based on EVE Online, with permission from CCP.
 
 import time
 import sys
+
 from . import _blue as blue
 from . import const, util, dbutil
 

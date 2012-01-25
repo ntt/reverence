@@ -48,14 +48,21 @@ void DEBUG(char *text)
 	if(debug_func && !PyObject_CallFunction(debug_func, "s", text))
 		PyErr_Clear();
 }
+#define DEBUG_INDENT {int i; for(i=0; i<ct_ix; i++) printf("  ");}
 #else
 #define DEBUG(text)
-#endif
+#endif // MARSHAL_DEBUG
+
 
 #define TYPE_LIST_ITERATOR (TYPE_LIST|SHARED_FLAG)
 #define TYPE_DICT_ITERATOR (TYPE_DICT|SHARED_FLAG)
 
-
+// switches current NEWOBJ/REDUCE container to iterator mode
+#define LIST_ITERATOR {\
+	container->type = TYPE_LIST_ITERATOR;\
+	container->obj2 = NULL;\
+	container->free = -1;\
+}
 
 // macro to read an object length/size value.
 #define READ_LENGTH \
@@ -124,7 +131,7 @@ if((s+x) > end)\
 }
 
 // puts a new data container on the stack
-#define PUSH_CONTAINER \
+#define PUSH_CONTAINER(_type, _size) \
 {\
 	if(ct_ix >= MAX_DEPTH)\
 	{\
@@ -132,6 +139,8 @@ if((s+x) > end)\
 		goto fail;\
 	}\
 	container = &ct_stack[++ct_ix];\
+	container->otype = container->type = _type;\
+	container->free = _size;\
 }
 
 // pops current container off the stack (makes its parent active)
@@ -139,19 +148,46 @@ if((s+x) > end)\
 	container = &ct_stack[--ct_ix]
 
 
-// changes current container type to list iterator.
-#define LIST_ITERATOR \
+// macro for counted (val,key) and iterated (key,val) dict population.
+#define POPULATE_DICT(_key,_value)									\
+	if(container->obj2)												\
+	{																\
+		PyDict_SetItem(container->obj, _key, _value);				\
+		/* dicts don't steal references, decref the key & val. */	\
+		Py_DECREF(_key);											\
+		Py_DECREF(_value);											\
+		container->obj2 = NULL;										\
+	}																\
+	else															\
+	{																\
+		/* object is the key/value. next iteration's object will be \
+		   the key, so store it temporarily while waiting.	*/		\
+		container->obj2 = obj;										\
+	}
+
+#define _TYPE_TUPLE_NEW PyTuple_New
+#define _TYPE_LIST_NEW PyList_New
+
+#define NEW_SEQUENCE(_type, _length) \
 {\
-	container->type = TYPE_LIST_ITERATOR;\
-	container->obj2 = NULL;\
-	container->free = -1;\
-}\
+	/* Security Check: we're forced to trust the stream to some extent \
+	regarding the number of items to allocate for the sequence. \
+	To reduce the effects of malicious or corrupted data, make sure \
+	the stream has enough data to fill the list. */ \
+	CHECK_SIZE(_length);\
+	PUSH_CONTAINER(_type, _length);\
+	container->obj = _##_type##_NEW(_length);\
+	container->index = 0;\
+	CHECK_SHARED(container->obj);\
+}
+
 
 // this structure tracks state of a container
 struct Container {
 	PyObject *obj;
 	PyObject *obj2;
-	int type;  // type as defined by the TYPE_ definitions.
+	int otype; // container type as defined by the TYPE_ definitions.
+	int type;  // temp container type (usually the same as otype).
 	int free;  // typically the number of remaining slots in the container.
 	int index; // reserved index into shared object map (if object is shared).
 };
@@ -468,10 +504,8 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 //		if(shared)
 		{
 			char text[220];
-			int i;
-			for(i=0; i<ct_ix; i++)
-				printf("  ");
 
+			DEBUG_INDENT;
 			sprintf(text, "pos:%4d type:%s(0x%02x) shared:%d len:%4d map:[", s-stream, tokenname[type], type, shared?1:0, length);
 			printf(text);
 			for(i=0; i<shared_mapsize; i++)
@@ -481,6 +515,17 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 #endif // MARSHAL_DEBUG
 
 		switch(type) {
+		//
+		// break statement:
+		//   attempts to add the newly decoded object (in the obj variable) to
+		//   the currently building container object.
+		//
+		// continue statement:
+		//   indicates the decoded object or type marker was handled/consumed
+		//   by the case and should _not_ be added to the currently building
+		//   container object or used in any other way; immediately decode a
+		//   new object
+		//
 
 		//---------------------------------------------------------------------
 		// SCALAR TYPES
@@ -611,27 +656,15 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 		//---------------------------------------------------------------------
 
 		case TYPE_TUPLE1:
-			length = 1;
-			goto tuple;
+			NEW_SEQUENCE(TYPE_TUPLE, 1);
+			continue;
 
 		case TYPE_TUPLE2:
-			length = 2;
-			// fallthrough
-tuple:
+			NEW_SEQUENCE(TYPE_TUPLE, 2);
+			continue;
+
 		case TYPE_TUPLE:
-			// Security Check: we're forced to trust the stream to some extent
-			// regarding the number of items to allocate for the sequence.
-			// To reduce the effects of malicious or corrupted data, make sure
-			// the stream has enough data to fill the list.
-
-			CHECK_SIZE(length);
-
-			PUSH_CONTAINER;
-			container->obj = PyTuple_New(length);
-			container->type = TYPE_TUPLE;
-			container->free = length;
-			container->index = 0;
-			CHECK_SHARED(container->obj);
+			NEW_SEQUENCE(TYPE_TUPLE, length);
 			continue;
 
 		case TYPE_LIST0:
@@ -640,27 +673,19 @@ tuple:
 			break;
 
 		case TYPE_LIST1:
-			length = 1;
-			// fallthrough
-		case TYPE_LIST:
-			// Security Check: see TYPE_TUPLE above.
-			CHECK_SIZE(length);
+			NEW_SEQUENCE(TYPE_LIST, 1);
+			continue;
 
-			PUSH_CONTAINER;
-			container->type = TYPE_LIST;
-			container->free = length;
-			container->obj = PyList_New(length);
-			container->index = 0;
-			CHECK_SHARED(container->obj);
+		case TYPE_LIST:
+			NEW_SEQUENCE(TYPE_LIST, length);
 			continue;
 
 		case TYPE_DICT:
 			if(length)
 			{
-				PUSH_CONTAINER;
+				CHECK_SIZE(length*2);
+				PUSH_CONTAINER(TYPE_DICT, length*2);
 				container->obj = PyDict_New();
-				container->type = TYPE_DICT;
-				container->free = length * 2;
 				container->obj2 = NULL;
 				container->index = 0;
 				CHECK_SHARED(container->obj);
@@ -720,10 +745,8 @@ tuple:
 		case TYPE_INSTANCE:
 		case TYPE_NEWOBJ:
 		case TYPE_REDUCE:
-			PUSH_CONTAINER;
+			PUSH_CONTAINER(type, -1);
 			container->obj = NULL;
-			container->type = type;
-			container->free = -1;
 			RESERVE_SLOT(container->index);
 			continue;
 
@@ -763,6 +786,18 @@ if(obj && obj->ob_refcnt < 0)
 	DEBUG(b);
 }
 */
+if(obj) {
+	DEBUG_INDENT;
+	printf("`-- ");
+	PyObject_Print(obj, stdout, 0);
+	printf("\r\n");
+	fflush(stdout);
+}
+else
+{
+	DEBUG_INDENT;
+	printf("*** MARK\r\n");
+}
 #endif // MARSHAL_DEBUG
 
 		while(1)
@@ -779,7 +814,8 @@ if(obj && obj->ob_refcnt < 0)
 #if MARSHAL_DEBUG
 		{ 
 			//char text[220];
-			printf("container ix:%d (%08lx) type:0x%02x free:%d index:%d\r\n", ct_ix, container->obj, container->type, container->free, container->index);
+			DEBUG_INDENT;
+			printf("container ix:%d (%08lx) type:%s[0x%02x] free:%d index:%d\r\n", ct_ix, container->obj, tokenname[container->type], container->type, container->free, container->index);
 		}
 #endif // MARSHAL_DEBUG
 
@@ -894,6 +930,7 @@ if(obj && obj->ob_refcnt < 0)
 
 					Py_DECREF(obj);
 
+					// switch to list iterator
 					LIST_ITERATOR;
 					break;
 				}
@@ -922,8 +959,8 @@ if(obj && obj->ob_refcnt < 0)
 
 					Py_DECREF(obj);
 
+					// switch to list iterator
 					LIST_ITERATOR;
-
 					break;
 				}
 
@@ -937,8 +974,6 @@ if(obj && obj->ob_refcnt < 0)
 						// decref the append method
 						Py_XDECREF(container->obj2);
 						container->obj2 = NULL;
-
-						// we're done with list iter, switch to dict iter.
 						container->type = TYPE_DICT_ITERATOR;
 						break;
 					}
@@ -955,6 +990,7 @@ if(obj && obj->ob_refcnt < 0)
 						goto cleanup;
 
 #if MARSHAL_DEBUG
+					DEBUG_INDENT;
 					printf("Appended %08lx to %08lx\r\n", obj, container->obj);
 #endif // MARSHAL_DEBUG
 
@@ -972,25 +1008,13 @@ if(obj && obj->ob_refcnt < 0)
 						container->free = 1;
 						break;
 					}
-					// fallthrough
-				case TYPE_DICT:
-					if(container->obj2)
-					{
-						PyDict_SetItem(container->obj, obj, container->obj2);
-
-						// dicts don't steal references, decref the key & val.
-						Py_DECREF(obj);
-						Py_DECREF(container->obj2);
-						container->obj2 = NULL;
-					}
-					else
-					{
-						// object is the value. next iteration's object will be
-						// the key, so store it temporarily while waiting.
-						container->obj2 = obj;
-					}
+					POPULATE_DICT(container->obj2, obj);
 					break;
 
+
+				case TYPE_DICT:
+					POPULATE_DICT(obj, container->obj2);
+					break;
 
 
 				case 0:
@@ -1236,6 +1260,11 @@ init_marshal(void)
 	tokenname[TYPE_MARK] = "MARK";
 	tokenname[TYPE_UTF8] = "UTF8";
 	tokenname[TYPE_LONG] = "LONG";
+
+	tokenname[TYPE_LIST_ITERATOR] = "LIST_ITERATOR";
+	tokenname[TYPE_DICT_ITERATOR] = "DICT_ITERATOR";
+	tokenname[TYPE_LIST_ITERATOR_NEWOBJ] = "LIST_ITERATOR_NEWOBJ";
+	tokenname[TYPE_DICT_ITERATOR_NEWOBJ] = "DICT_ITERATOR_NEWOBJ";
 #endif // MARSHAL_DEBUG
 
 	return m;

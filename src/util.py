@@ -15,6 +15,7 @@ import os
 import time
 import math
 import cPickle
+import _weakref
 
 from . import _os
 
@@ -294,6 +295,10 @@ class FilterRowset:
 	def Sort(self, colname):
 		ret = Rowset(self.header, self.items.values(), self.RowClass)
 		return ret.Sort(colname)
+
+	def __iter__(self):
+		return (self[key] for key in self.iterkeys())
+
 
 
 class IndexedRowLists(dict):

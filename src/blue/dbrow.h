@@ -62,6 +62,7 @@ typedef struct {
 	int cd_size;			// size class
 	int cd_type;			// DBTYPE_* value
 	int cd_offset;			// offset into data blurb
+	int cd_nullbit;			// offset of null bit
 	char *cd_name;			// column name (hard reference to string in columns data)
 } ColumnDescriptor;
 

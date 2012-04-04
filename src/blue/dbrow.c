@@ -130,6 +130,12 @@ getFromCD(PyDBRowObject *row, ColumnDescriptor *cd)
 {
 	char *data = &row->dbrow_data[cd->cd_offset];
 
+	if(row->dbrow_data[cd->cd_nullbit >> 3] & (1<<(cd->cd_nullbit & 0x7)))
+	{
+		Py_INCREF(Py_None);
+		return Py_None;
+	}
+
 	switch (cd->cd_type) {
 		case DBTYPE_I1       : return PyInt_FromLong(*(int8_t*)data);
 		case DBTYPE_UI1      : return PyInt_FromLong(*(uint8_t*)data);
@@ -184,7 +190,7 @@ getFromCD(PyDBRowObject *row, ColumnDescriptor *cd)
 	*(_ttype *)_tdata = (_ttype)temp;\
 	if(temp != (*(_ttype *)_tdata))\
 		PyErr_Warn(PyExc_RuntimeWarning, "numeric value was truncated to " #_ttype);\
-	return 0;\
+	break;\
 }
 
 
@@ -194,8 +200,26 @@ setToCD(PyDBRowObject *row, ColumnDescriptor *cd, PyObject *obj)
 	// returns -1 for failure, 0 for success.
 	char *data = &row->dbrow_data[cd->cd_offset];
 
+	if(obj == Py_None)
+	{
+		switch (cd->cd_type) {
+			case DBTYPE_STR:
+			case DBTYPE_WSTR:
+			case DBTYPE_BYTES:
+				Py_XDECREF(*(PyObject**)data);
+				Py_INCREF(obj);
+				*(PyObject**)data = obj;
+		}
+
+		// set null bit
+		row->dbrow_data[cd->cd_nullbit >> 3] |= (1<<(cd->cd_nullbit & 0x7));
+
+		return 0;
+	}
+
 	switch (cd->cd_type) {
-		// note to self: cases in this switch are supposed to return, not break.
+		// note to self: cases in this switch are supposed to return -1 on
+		// fail, break on success (for resetting the null bit properly).
 
 		//                         /-------- precast ---------\  /- store as -\ /modify\ /--- convert from
 		case DBTYPE_I1       : SET(int64_t, PyNumber_Long , obj, int8_t  , data,        , PyLong_AsLongLong);
@@ -216,7 +240,7 @@ setToCD(PyDBRowObject *row, ColumnDescriptor *cd, PyObject *obj)
 				row->dbrow_data[cd->cd_offset >> 3] |= (1<<(cd->cd_offset & 0x7));
 			else
 				row->dbrow_data[cd->cd_offset >> 3] &= ~(1<<(cd->cd_offset & 0x7));
-			return 0;
+			break;
 
 		case DBTYPE_STR:
 		case DBTYPE_WSTR:
@@ -224,7 +248,7 @@ setToCD(PyDBRowObject *row, ColumnDescriptor *cd, PyObject *obj)
 			Py_XDECREF(*(PyObject**)data);
 			Py_INCREF(obj);
 			*(PyObject**)data = obj;
-			return 0;
+			break;
 
 		case DBTYPE_EMPTY:
 			// we dont support virtuals...
@@ -233,8 +257,10 @@ setToCD(PyDBRowObject *row, ColumnDescriptor *cd, PyObject *obj)
 			return -1;
 	}
 
-	PyErr_Format(PyExc_RuntimeError, "Oops! control is reaching places it shouldn't");
-	return -1;
+	// clear null bit
+	row->dbrow_data[cd->cd_nullbit >> 3] &= ~(1<<(cd->cd_nullbit & 0x7));
+
+	return 0;
 }
 
 
@@ -266,6 +292,7 @@ rd_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
 	PyDBRowDescriptorObject *self;
 	int i;
+	int nulls;
 	ColumnDescriptor *cd;
 	PyObject *initarg;
 	PyObject *item;
@@ -369,7 +396,9 @@ rd_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 		offset <<= 3;
 		offsets[0] = offset;
-		offset += sizes[0] + self->ob_size;
+		offset += sizes[0];
+		nulls = offset;  // offset for null flags
+		offset += self->ob_size;
 		offset = (offset+7) >> 3;
 
 		self->rd_unpacked_size = offset;
@@ -389,6 +418,7 @@ rd_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 		for(i=0; i<self->ob_size; i++)
 		{
 			cd = &self->rd_cd[i];
+			cd->cd_nullbit = nulls + i;
 			switch(cd->cd_type) {
 				case DBTYPE_STR:
 				case DBTYPE_WSTR:
@@ -725,7 +755,6 @@ PyDBRow_New(PyDBRowDescriptorObject *header, char *in, int in_size)
 		PyErr_SetString(PyExc_RuntimeError, "Invalid RLE string");
 		return NULL;
 	}
-
 
 /*	{
 		char buf[500];

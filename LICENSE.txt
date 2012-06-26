@@ -1,4 +1,4 @@
-Copyright (c) 2003-2009 Jamie "Entity" van den Berge
+Copyright (c) 2003-2012 Jamie "Entity" van den Berge
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

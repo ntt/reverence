@@ -12,6 +12,7 @@
 #include "Python.h"
 #include "dbrow.h"
 #include "marshal.h"
+#include "virtualfile.h"
 
 PyMODINIT_FUNC
 init_blue(void)
@@ -23,6 +24,9 @@ init_blue(void)
 		return;
 
 	if(!init_dbrow(m))
+		return;
+
+	if(!init_virtualfile(m))
 		return;
 
 	marshal = init_marshal();

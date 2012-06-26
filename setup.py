@@ -56,6 +56,7 @@ setup(
 		"src/blue/marshal.c",
 		"src/blue/dbrow.c",
 		"src/blue/adler32.c",
+		"src/blue/virtualfile.c",
 	])],
 
 	packages = ["reverence"],

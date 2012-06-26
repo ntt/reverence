@@ -33,7 +33,7 @@ REQUIREMENTS
 ============
 - Windows (XP or later) or Linux. (untested on Mac)
 - x86/x64 compatible processor.
-- Requires Python 2.7 or 2.6.
+- Python 2.7 or 2.6.
 - An EVE Online installation.
 
 Notes:

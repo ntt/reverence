@@ -1,6 +1,6 @@
 Reverence - REVERse ENgineered Cache Explorer
             
-Copyright (C)2003-2011 by Jamie "Entity" van den Berge
+Copyright (C)2003-2012 by Jamie "Entity" van den Berge
 All rights reserved.
 
 Reverence is an advanced EVE Online cache/bulkdata handling toolkit for Python.
@@ -26,14 +26,14 @@ FEATURES
   this software DOES NOT interact with the EVE Online client or server.
 - EmbedFS (.stuff) file support.
 - Various EVE related utility functions and constants.
-
+- Supports localization.
 
 
 REQUIREMENTS
 ============
 - Windows (XP or later) or Linux. (untested on Mac)
 - x86/x64 compatible processor.
-- Python 2.6 recommended (For using it with 2.5, see below)
+- Requires Python 2.7 or 2.6.
 - An EVE Online installation.
 
 Notes:
@@ -50,11 +50,6 @@ Notes:
   for in the expected location in the ~/.wine dir, based on the root location
   specified. If this directory cannot be found, the cache path needs to be
   specified with the cachepath keyword when instantiating blue.EVE.
-
-- Even though Python 2.6 is recommended, Reverence will compile and run fine
-  for 2.5. However, if you want to compile it for Python 2.5 on Windows, you
-  are on your own.
-
 
 
 SECURITY WARNING

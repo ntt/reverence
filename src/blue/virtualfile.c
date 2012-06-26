@@ -9,7 +9,7 @@
 */
 
 /*
-// This read-only Pyvirtualfile_Type subclass limits I/O to a specific offset and
+// This read-only PyFile_Type subclass limits I/O to a specific offset and
 // size in a file, and fools seek() and tell(). Instances of it can be
 // used in almost all places expecting a regular file object.
 //

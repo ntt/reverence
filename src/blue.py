@@ -1,6 +1,6 @@
 """Main interface to all the goodies.
 
-Copyright (c) 2003-2010 Jamie "Entity" van den Berge <jamie@hlekkir.com>
+Copyright (c) 2003-2012 Jamie "Entity" van den Berge <jamie@hlekkir.com>
 
 This code is free software; you can redistribute it and/or modify
 it under the terms of the BSD license (see the file LICENSE.txt
@@ -21,7 +21,7 @@ __all__ = ["EVE", "marshal", "os", "pyos", "DBRow", "DBRowDescriptor"]
 #   "reverence.blue.marshal.UnmarshalError: not enough kittens!"
 # it will look like
 #   "UnmarshalError: not enough kittens!"
-# Yes I know this is not naughty, but EVE presents them like this as well ;)
+# Yes I know this is naughty, but EVE presents them like this as well ;)
 marshal.UnmarshalError.__module__ = None
 
 # and because the exception class is accessible like this in EVE ...
@@ -57,9 +57,9 @@ class _ResFile(object):
 		return self.fh.read(*args)
 
 	def Close(self):
-		if fh:
-			fh.close()
-			fh = None
+		if self.fh:
+			self.fh.close()
+			self.fh = None
 
 	# ---- custom additions ----
 
@@ -68,6 +68,9 @@ class _ResFile(object):
 
 	def readline(self):
 		return self.fh.readline()
+
+	def seek(self, *args, **kw):
+		return self.fh.seek(*args, **kw)
 
 
 class _Rot(object):
@@ -112,7 +115,7 @@ class EVE(object):
 	RemoteSvc(service) - creates offline RemoteSvc wrapper for given service.
 	"""
 
-	def __init__(self, root, server="Tranquility", machoVersion=-1, languageID="EN", cachepath=None, compatibility=False, wineprefix=".wine"):
+	def __init__(self, root, server="Tranquility", machoVersion=-1, languageID=None, cachepath=None, wineprefix=".wine"):
 		self.root = root
 		self.server = server
 		self.rot = _Rot(self)
@@ -122,7 +125,8 @@ class EVE(object):
 		self.cache = cache.CacheMgr(self.root, self.server, machoVersion, cachepath, wineprefix)
 		self.machoVersion = self.cache.machoVersion
 
-		self.cfg = self.cache.getconfigmgr(compatibility=compatibility)
+		self.cfg = self.cache.getconfigmgr(languageID=self.languageID)
+		self.cfg._eve = self
 
 		# hack to make blue.ResFile() work. This obviously means that
 		# when using multiple EVE versions, only the latest will be accessible

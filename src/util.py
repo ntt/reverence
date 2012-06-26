@@ -179,21 +179,26 @@ class Rowset:
 class IndexRowset(Rowset):
 	__guid__ = "util.IndexRowset"
 
-	def __init__(self, header=None, lines=None, key=None, RowClass=Row, dict=None, cfgInstance=None):
+	def __init__(self, header=None, lines=None, key=None, RowClass=Row, dict=None, cfgInstance=None, fetcher=None):
 		if not key:
 			raise ValueError, "Crap key"
 		ki = header.index(key)
 
 		Rowset.__init__(self, header, lines, RowClass, cfgInstance=cfgInstance)
 		if dict is None:
-			self.items = {}
+			self.items = d = {}
 			self.key = ki
 			for line in self.lines:
-				self.items[line[ki]] = line
+				d[line[ki]] = line
 		else:
 			self.items = dict
 
+		self._fetcher = fetcher
+
 	def has_key(self, key):
+		return key in self.items
+
+	def __contains__(self, key):
 		return key in self.items
 
 	def values(self):
@@ -220,6 +225,15 @@ class IndexRowset(Rowset):
 		rs.SortBy(column, reverse)
 		return rs
 
+	def Prime(self, keys):
+		wanted = set(keys) - set(self.items)
+		lines = self._fetcher(wanted)
+		self.lines.extend(lines)
+		d = self.items
+		ki = self.key
+		for line in lines:
+			d[line[ki]] = line
+
 	get = Get  # compatibility
 
 
@@ -233,29 +247,34 @@ class FilterRowset:
 
 	def __init__(self,header=None, li=None, idName=None, RowClass=Row, idName2=None, dict=None, cfgInstance=None):
 		self.cfg = cfgInstance
-		items = {}
+
 		self.RowClass = RowClass
 
 		if dict is not None:
 			items = dict
 		elif header is not None:
-			if not idName2:
-				idfield = header.index(idName)
-				for i in li:
-					id = i[idfield]
-					if id in items:
-						items[id].append(i)
-					else:
-						items[id] = [i]
-			else:
-				idfield = header.index(idName)
+			items = {}
+			_get = items.get
+			idfield = header.index(idName)
+			if idName2:
 				idfield2 = header.index(idName2)
 				for i in li:
 					id = i[idfield]
-					if id in items:
-						items[id][i[idfield2]] = i
-					else:
+					_items = _get(id)
+					if _items is None:
 						items[id] = {i[idfield2]:i}
+					else:
+						_items[i[idfield2]] = i
+			else:
+				for i in li:
+					id = i[idfield]
+					_items = _get(id)
+					if _items is None:
+						items[id] = [i]
+					else:
+						_items.append(i)
+		else:
+			items = {}
 
 		self.items = items
 		self.header = header
@@ -304,6 +323,7 @@ class FilterRowset:
 class IndexedRowLists(dict):
 	__guid__ = 'util.IndexedRowLists'
 	__passbyvalue__ = 1
+	__slots__ = ()
 
 	def __init__(self, rows=[], keys=None):
 		self.InsertMany(keys, rows)
@@ -314,19 +334,23 @@ class IndexedRowLists(dict):
 	def InsertMany(self, keys, rows):
 		rkeys = keys[1:]
 		k = keys[0]
+		_get = dict.get
 		if rkeys:
 			for row in rows:
 				key = row[k]
-				if key not in self:
-					self[key] = self.__class__()
-				self[key].InsertMany(rkeys, [row])
+				grp = _get(self, key)
+				if grp is None:
+					grp = self[key] = self.__class__()
+				grp.InsertMany(rkeys, [row])
 		else:
 			for row in rows:
 				key = row[k]
-				if key in self:
-					self[key].append(row)
-				else:
+				grp = _get(self, key)
+				if grp is None:
 					self[key] = [row]
+				else:
+					grp.append(row)
+
 
 	def __getitem__(self, key):
 		return dict.get(self, key, [])
@@ -505,6 +529,23 @@ def FmtISK(isk, showAurarAlways=1, sign=" ISK"):
 		if long(isk) == isk:
 			return FmtAmt(long(isk)) + sign
 	return FmtAmt(round(isk, 2), showFraction=2, fillWithZero=True) + sign
+
+
+_roman = {}
+class preproman:
+	for i in xrange(1, 40):
+		n = i
+		result = ""
+		for (numeral, length, integer,) in (('X', 1, 10),('IX', 2, 9),('V', 1, 5),('IV', 2, 4),('I', 1, 1)):
+			while i >= integer:
+				result += numeral
+				i -= integer
+		_roman[n] = result
+del preproman
+
+def IntToRoman(n):
+	return _roman.get(int(n), str(n))
+
 
 
 #-----------------------------------------------------------------------------

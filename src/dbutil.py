@@ -153,14 +153,15 @@ class CRowset(list):
 
 		c = 0
 		keyIdx = fr.header.Keys().index(columnName)
-
+		_get = dict.get
 		if indexName is None:
 			for row in self:
 				key = row[keyIdx]
-				if key in fr:
-					fr[key].append(row)
-				else:
+				grp = _get(fr, key)
+				if grp is None:
 					fr[key] = [row]
+				else:
+					grp.append(row)
 		else:
 			key2Idx = fr.header.Keys().index(indexName)
 			for row in self:

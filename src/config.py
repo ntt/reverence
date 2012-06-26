@@ -13,90 +13,61 @@ included with the distribution).
 Parts of code inspired by or based on EVE Online, with permission from CCP.
 """
 
-# TODO:
-# - multi language support :)
-
-import time
 import sys
+import os
+import time
+import sqlite3
 
 from . import _blue as blue
 from . import const, util, dbutil
+from . import localization, fsd
 
-_urga = util.Row.__getattr__
+#import carbon.staticData.schema.persistence as fsdSchemaPersistence
+#import carbon.staticData.schema.binaryLoader as fsdBinaryLoader
+#import carbon.staticData.schema.schemaOptimizer as fsdSchemaOptimizer
 
+_get = util.Row.__getattr__
 
-class RecordsetIterator(object):
-	def next(self):
-		return self.rowset.rowclass(self.rowset.header, self.iter.next(), self.rowset.cfg)
+def _localized(row, attr, messageID):
+	_cfg = (row.cfg or cfg)
+	if _cfg._languageID:
+		return _cfg._localized.GetByMessageID(messageID)
+	return _get(row, attr)
 
-
-class Recordset(object):
-	def __init__(self, rowclass, keycolumn, cfgInstance=None):
-		self.rowclass = rowclass
-		self.keycolumn = keycolumn
-		self.header = {}
-		self.data = {}
-		self.cfg = cfgInstance
-
-	def Get(self, *args):
-		return self.rowclass(self.header, self.data.get(*args), self.cfg)
-
-	def GetIfExists(self, *args):
-		return self.rowclass(self.header, self.data.get(*args), self.cfg)
-
-	def __iter__(self):
-		it = RecordsetIterator()
-		it.rowset = self
-		it.iter = self.data.itervalues()
-		return it
-
-	def __contains__(self, key):
-		return key in self.data
+def _localized_important(row, attr, messageID):
+	_cfg = (row.cfg or cfg)
+	if _cfg._languageID:
+		return _cfg._localized.GetImportantByMessageID(messageID)
+	return _get(row, attr)
 
 
-class ItemsRecordset(Recordset):
-	pass
+OWNER_AURA_IDENTIFIER = -1
+OWNER_SYSTEM_IDENTIFIER = -2
+OWNER_NAME_OVERRIDES = {
+	OWNER_AURA_IDENTIFIER: 'UI/Agents/AuraAgentName',
+	OWNER_SYSTEM_IDENTIFIER: 'UI/Chat/ChatEngine/EveSystem'
+}
 
-
-
-class Record(object):
-	def Get(self, *args):
-		return self.__dict__.get(*args)
-
-	def Update(self, dict):
-		if self.__primary__ in dict:
-			raise ValueError, "Cannot update primary key '%s' of record" % self.__primary__
-
-		for k in dict.iterkeys():
-			if k not in self.__fields__:
-				raise IndexError, "Record has no field '%s'" % k
-
-		self.__dict__.update(dict)
-
-class OwnerRecord(Record):
-	__primary__ = "ownerID"
-	__fields__ = ['ownerID', 'ownerName', 'typeID', 'allianceID', 'corpID', 'role', 'corpRole']
-
-	def __init__(self, ownerID, dict=None):
-		self.ownerID = ownerID
-		self.ownerName = None
-		if dict:
-			self.Update(dict)
-
-	def __getattr__(self, attr):
-		if attr == "name":
-			attr = "ownerName"
-		return Record.__getattr__(self, attr)
-
-	def __repr__(self):
-		return "<OwnerRecord %s: '%s'>" % (self.ownerID, self.ownerName)
+# used by GetLocationsLocalBySystem method
+_solarSystemObjectRowDescriptor = blue.DBRowDescriptor((
+	('groupID', const.DBTYPE_I4),
+	('typeID', const.DBTYPE_I4),
+	('itemID', const.DBTYPE_I4),
+	('itemName', const.DBTYPE_WSTR),
+	('locationID', const.DBTYPE_I4),
+	('orbitID', const.DBTYPE_I4),
+	('connector', const.DBTYPE_BOOL),
+	('x', const.DBTYPE_R8),
+	('y', const.DBTYPE_R8),
+	('z', const.DBTYPE_R8),
+))
 
 
 class Billtype(util.Row):
 	__guid__ = 'cfg.Billtype'
 
 	def __getattr__(self, name):
-		value = _urga(self, name)
+		value = _get(self, name)
 #		if name == 'billTypeName':
 #			value = Tr(value, 'dbo.actBillTypes.billTypeName', self.billTypeID)
 		return value
@@ -118,9 +89,17 @@ class InvType(util.Row):
 			return None
 
 	def __getattr__(self, attr):
-		if attr == "name":
-			return _urga(self, "typeName")
-		return _urga(self, attr)
+		if attr in ("name", "typeName"):
+			return _localized_important(self, "typeName", self.typeNameID)
+		if attr == 'categoryID':
+			return (self.cfg or cfg).invgroups.Get(self.groupID).categoryID
+		if attr == "description":
+			return _localized(self, "description", self.descriptionID)
+		return _get(self, attr)
+
+	def GetRawName(self, languageID):
+		return (self.cfg or cfg)._localization.GetByMessageID(self.typeNameID, languageID)
+
 
 	# ---- custom additions ----
 
@@ -144,88 +123,82 @@ class InvGroup(util.Row):
 		return (self.cfg or cfg).invcategories.Get(self.categoryID)
 
 	def __getattr__(self, attr):
-		if attr == "name":
-			return _urga(self, "groupName")
+		if attr in ("name", "groupName", "description"):
+			return _localized(self, "groupName", self.groupNameID)
 		if attr == "id":
-			return _urga(self, "groupID")
-		return _urga(self, attr)
+			return _get(self, "groupID")
+		return _get(self, attr)
 
 
 class InvCategory(util.Row):
 	__guid__ = "sys.InvCategory"
 
 	def __getattr__(self, attr):
-		if attr == "name":
-			return _urga(self, "categoryName")
+		if attr in ("name", "categoryName", "description"):
+			return _localized(self, "categoryName", self.categoryNameID)
 		if attr == "id":
-			return _urga(self, "categoryID")
-		return _urga(self, attr)
+			return _get(self, "categoryID")
+		return _get(self, attr)
 
 	def IsHardware(self):
 		return self.categoryID == const.categoryModule
 
 
 class InvMetaGroup(util.Row):
+	__guid__ = "cfg.InvMetaGroup"
+
 	def __getattr__(self, name):
 		if name == "_metaGroupName":
-			return _urga(self, "metaGroupName")
+			return _get(self, "metaGroupName")
 
 		if name == "name":
 			name = "metaGroupName"
 
-		value = _urga(self, name)
+		value = _get(self, name)
 #		if name == "metaGroupName":
 #			return self.cfg.Tr(value, "inventory.metaGroups.metaGroupName", self.dataID)
 		return value
 
 
 class DgmAttribute(util.Row):
+	__guid__ = "cfg.DgmAttribute"
+
 	def __getattr__(self, name):
-		value = _urga(self, name)
-#		if name == "displayName":
-#			return self.cfg.Tr(value, "dogma.attributes.displayName", self.dataID)
-		return value
+		if name == 'displayName':
+			return _localized(self, "displayName", self.displayNameID)
+		return _get(self, name)
 
 
 class DgmEffect(util.Row):
+	__guid__ = "cfg.DgmEffect"
+
 	def __getattr__(self, name):
-		value = _urga(self, name)
-#		if name == "displayName":
-#			return self.cfg.Tr(value, "dogma.effects.displayName", self.dataID)
-#		if name == "description":
-#			return self.cfg.Tr(value, "dogma.effects.description", self.dataID)
-		return value
-
-
-class EveGraphics(util.Row):
-	def __getattr__(self, name):
-		if name == "name" or name == "description":
-			if "icon" in row.header:
-				# Pre-tyrannis.
-				return self.icon
-			return self.description
-		else:
-			return _urga(self, name)
-
-	def __str__(self):
-		return "EveGraphic ID: %d, \"%s\"" % (self.graphicID, self.icon)
+		if name == "displayName":
+			return _localized(self, "displayName", self.displayNameID)
+		if name == "description":
+			return _localized(self, "description", self.descriptionID)
+		return _get(self, name)
 
 
 class EveOwners(util.Row):
+	__guid__ = "cfg.EveOwners"
+
 	def __getattr__(self, name):
-		if name == "name" or name == "description":
-			name = "ownerName"
-		elif name == "groupID":
+		if name in ("name", "description", "ownerName"):
+			return _get(self, "ownerName")
+		if name == "groupID":
 			return self.cfg.invtypes.Get(self.typeID).groupID
+		return _get(self, name)
 
-		value = _urga(self, name)
-#		if name == "ownerName" and IsSystemOrNPC(self.ownerID):
-#			return self.cfg.Tr(value, "dbo.eveNames.itemName", self.ownerID)
-		return value
-
+	def GetRawName(self, languageID):
+		if self.ownerNameID:
+			if self.ownerNameID in _OWNER_NAME_OVERRIDES:
+				return (self.cfg or cfg)._localization.GetByLabel(_OWNER_NAME_OVERRIDES[self.ownerNameID], languageID)
+			return (self.cfg or cfg)._localization.GetByMessageID(self.ownerNameID, languageID)
+		return self.name
 
 	def __str__(self):
-		return "EveOwner ID: %d, \"%s\"" % (self.ownerID, self.ownerName)
+		return 'EveOwner ID: %d, "%s"' % (self.ownerID, self.ownerName)
 
 	def Type(self):
 		return self.cfg.invtypes.Get(self.typeID)
@@ -238,36 +211,46 @@ class EveLocations(util.Row):
 	__guid__ = "dbrow.Location"
 
 	def __getattr__(self, name):
-		if name == "name" or name == "description":
-			name = "locationName"
-		value = _urga(self, name)
-		return value
+		if name in ("name", "description", "locationName"):
+			locationName = _get(self, 'locationName')
+			_cfg = (self.cfg or cfg)
+			if _cfg._languageID:
+				if (not locationName) and self.locationNameID is not None:
+					if isinstance(self.locationNameID, (int, long)):
+						locationName = _cfg._localization.GetByMessageID(self.locationNameID)
+					elif isinstance(self.locationNameID, tuple):
+						locationName = _cfg._localization.GetByLabel(self.locationNameID[0], **self.locationNameID[1])
+					setattr(self, 'locationName', locationName)
+			return locationName
+
+		return _get(self, name)
 
 	def __str__(self):
-		return "EveLocation ID: %d, \"%s\"" % (self.locationID, self.locationName)
+		return 'EveLocation ID: %d, "%s"' % (self.locationID, self.locationName)
+
+	def GetRawName(self, languageID):
+		if self.locationNameID:
+			return (self.cfg or cfg)._localization.GetByMessageID(self.locationNameID, languageID)
+#		if self.locationID in cfg.rawCelestialCache:
+#			(lbl, kwargs,) = cfg.rawCelestialCache[self.locationID]
+#			return self.cfg._localization.GetByLabel(lbl, languageID, **kwargs)
+		return _get(self, name)
 
 #	def Station(self):
 #		return self.cfg.GetSvc("stationSvc").GetStation(self.id)
 
 
-
 class RamCompletedStatus(util.Row):
 	def __getattr__(self, name):
-		if name == "name":
-			name = "completedStatusName"
-		elif name == "completedStatusID" and self.cfg.protocol >= 276:
-			name = "completedStatus"
-
-		value = _urga(self, name)
-#		if name == "completedStatusName":
-#			return self.cfg.Tr(value, "dbo.ramCompletedStatuses.completedStatusText", self.completedStatusID)
-#		elif name == "description":
-#			return self.cfg.Tr(value, "dbo.ramCompletedStatuses.description", self.completedStatusID)
-		return value
+		if name in ("name", "completedStatusName"):
+			return _localized(self, "completedStatusName", self.completedStatusTextID)
+		if name == "description":
+			return _localized(self, "description", self.descriptionID)
+		return _get(self, name)
 
 	def __str__(self):
 		try:
-			return "RamCompletedStatus ID: %d, \"%s\"" % (self.completedStatusID, self.completedStatusName)
+			return 'RamCompletedStatus ID: %d, "%s"' % (self.completedStatus, self.completedStatusName)
 		except:
 			sys.exc_clear()
 			return "RamCompletedStatus containing crappy data"
@@ -275,20 +258,15 @@ class RamCompletedStatus(util.Row):
 
 class RamActivity(util.Row):
 	def __getattr__(self, name):
-    
-		if name == "name":
-			name = "activityName"
-    
-		value = _urga(self, name)
-#		if name == "activityName":
-#			return self.cfg.Tr(value, "dbo.ramActivities.activityName", self.activityID)
-#		elif name == "description":
-#			return self.cfg.Tr(value, "dbo.ramActivities.description", self.activityID)
-		return value
+		if name in ("name", "activityName"):
+			return _localized(self, "activityName", self.activityNameID)
+		if name == "description":
+			return _localized(self, "description", self.descriptionID)
+		return _get(self, name)
 
 	def __str__(self):
 		try:
-			return "RamActivity ID: %d, \"%s\"" % (self.activityID, self.activityName)
+			return 'RamActivity ID: %d, "%s"' % (self.activityID, self.activityName)
 		except:
 			sys.exc_clear()
 			return "RamActivity containing crappy data"
@@ -298,55 +276,48 @@ class RamDetail(util.Row):
 	def __getattr__(self, name):
    		if name == "activityID":
 			return self.cfg.ramaltypes.Get(self.assemblyLineTypeID).activityID
-   		value = _urga(self, name)
-		return value
+   		return _get(self, name)
 
 
 class MapCelestialDescription(util.Row):
 	def __getattr__(self, name):
-
-		# this attribute name changed in protocol 276
-		if name == "celestialID" and self.cfg.protocol >= 276:
-			name = "itemID"
-
-		value = _urga(self, name)
-#		if name == "description":
-#			return self.cfg.Tr(value, "dbo.mapCelestialDescriptions.description", self.celestialID)
-		return value
+		if name == "description":
+			return _localized(self, "description", self.descriptionID)
+		return _get(self, name)
 
 	def __str__(self):
-		return "MapCelestialDescriptions ID: %d" % (self.celestialID)
-
+		return "MapCelestialDescriptions ID: %d" % (self.itemID)
 
 
 class CrpTickerNames(util.Row):
 	def __getattr__(self, name):
-		if name == "name" or name == "description":
-			return self.tickerName
-		else:
-			return _urga(self, name)
+		if name in ("name", "description"):
+			return _get(self, "tickerName")
+		return _get(self, name)
 
 	def __str__(self):
 		return "CorpTicker ID: %d, \"%s\"" % (self.corporationID, self.tickerName)
 
 
 class AllShortNames(util.Row):
+	__guid__ = 'cfg.AllShortNames'
+
 	def __getattr__(self, name):
-		if name == "name" or name == "description":
-			return self.shortName
-		else:
-			return _urga(self, name)
+		if name in ("name", "description"):
+			return _get(self, "shortName")
+		return _get(self, name)
 
 	def __str__(self):
 		return "AllianceShortName ID: %d, \"%s\"" % (self.allianceID, self.shortName)
 
 
 class Certificate(util.Row):
+	__guid__ = 'cfg.Schematic'
+
 	def __getattr__(self, name):
-		value = _urga(self, name)
-#		if name == "description":
-#			return self.cfg.Tr(value, "cert.certificates.description", self.dataID)
-		return value
+		if name == "description":
+			return _localized(self, "description", self.descriptionID)
+		return _get(self, name)
 
 	def __str__(self):
 		return "Certificate ID: %d" % (self.certificateID)
@@ -356,16 +327,15 @@ class Schematic(util.Row):
 	__guid__ = 'cfg.Schematic'
 
 	def __getattr__(self, name):
-		value = _urga(self, name)
-#		if name == 'schematicName':
-#			value = self.cfg.Tr(value, 'planet.schematics.schematicName', self.dataID)
-		return value
+		if name == "schematicName":
+			return _localized(self, "schematicName", self.schematicNameID)
+		return _get(self, name)
 
 	def __str__(self):
 		return 'Schematic: %s (%d)' % (self.schematicName, self.schematicID)
 
 	def __cmp__(self, other):
-		if type(other) == int:
+		if type(other) is int:
 			return int.__cmp__(self.schematicID, other)
 		else:
 			return util.Row.__cmp__(self, other)
@@ -399,10 +369,17 @@ def _loader(attrName):
 	# Creates a closure used as a method in Config class (to be decorated with
 	# _memoize) that loads a specific bulkdata table.
 	def method(self):
-		ver, rem, tableName, storageClass, rowClass, primaryKey, bulkID = self._tables[attrName]
-#		if self.cache.machoVersion < ver:
-#			raise RuntimeError("%s table requires machoNet version %d, cache is version %d." % (tableName, ver, self.cache.machoVersion))
-		return self._loadbulkdata(tableName=(tableName or attrName), storageClass=storageClass, rowClass=rowClass, primaryKey=primaryKey, bulkID=bulkID)
+		entry = self._tables[attrName]
+		if len(entry) == 6:
+			# bulkID loader
+			ver, rem, storageClass, rowClass, primaryKey, bulkID = entry
+			return self._loadbulkdata(tableName=attrName, storageClass=storageClass, rowClass=rowClass, primaryKey=primaryKey, bulkID=bulkID)
+
+		if len(entry) == 4:
+			# FSD loader
+			ver, rem, resFileName, cacheNum = entry
+			return self._loadfsddata(attrName, resFileName, cacheNum)
+
 	method.func_name = attrName
 	return method
 
@@ -544,134 +521,147 @@ class Config(object):
 	# to its protocol version.
 	__tables__ = (
 
-#		( cfg attrib                  , (ver, del, bulkdata name     , storage class       , row class         , primary key           bulkID)),
-		("evegraphics"                , (  0,   0, "graphics"        , Recordset           , EveGraphics       , "graphicID"         , const.cacheResGraphics)),
-		("icons"                      , (242,   0, None              , Recordset           , util.Row          , 'iconID'            , const.cacheResIcons)),
-		("sounds"                     , (242,   0, None              , Recordset           , util.Row          , 'soundID'           , const.cacheResSounds)),
+#		( cfg attrib                  , (ver, del, storage class       , row class         , primary key           bulkID)),
+#		("evegraphics"                , (  0, 327, util.IndexRowset    , util.Row          , "graphicID"         , const.cacheResGraphics)),
+		("icons"                      , (242,   0, util.IndexRowset    , util.Row          , 'iconID'            , const.cacheResIcons)),
+		("sounds"                     , (242,   0, util.IndexRowset    , util.Row          , 'soundID'           , const.cacheResSounds)),
 
-		("invcategories"              , (  0,   0, "categories"      , Recordset           , InvCategory       , "categoryID"        , const.cacheInvCategories)),
-		("invgroups"                  , (  0,   0, "groups"          , Recordset           , InvGroup          , "groupID"           , const.cacheInvGroups)),
-		("groupsByCategories"         , (  0,   0, None              , "invgroups"         , None              , "categoryID"        , None)),
-		("invtypes"                   , (  0,   0, "types"           , Recordset           , InvType           , "typeID"            , const.cacheInvTypes)),
-		("typesByGroups"              , (  0,   0, None              , "invtypes"          , None              , "groupID"           , None)),
-		("typesByMarketGroups"        , (  0,   0, None              , "invtypes"          , None              , "marketGroupID"     , None)),
-		("invmetagroups"              , (  0,   0, "metagroups"      , Recordset           , InvMetaGroup      , "metaGroupID"       , const.cacheInvMetaGroups)),
-		("invmetatypes"               , (  0,   0, "metatypes"       , util.FilterRowset   , None              , "parentTypeID"      , const.cacheInvMetaTypes)),  # custom loader!
-		("invmetatypesByTypeID"       , (  0,   0, None              , None                , None              , None                , None)),  # custom loader!
-		("invbptypes"                 , (  0,   0, "bptypes"         , Recordset           , util.Row          , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
-		("invreactiontypes"           , (  0,   0, "invtypereactions", util.FilterRowset   , None              , "reactionTypeID"    , const.cacheInvTypeReactions)),
-		("invcontrabandTypesByFaction", (  0,   0, None              , dict                , None              , None                , None)),  # custom loader!
-		("invcontrabandTypesByType"   , (  0,   0, None              , dict                , None              , None                , None)),  # custom loader!
-		("shiptypes"                  , (  0,   0, None              , util.IndexRowset    , util.Row          , "shipTypeID"        , const.cacheShipTypes)),
+		("invcategories"              , (  0,   0, util.IndexRowset    , InvCategory       , "categoryID"        , const.cacheInvCategories)),
+		("invgroups"                  , (  0,   0, util.IndexRowset    , InvGroup          , "groupID"           , const.cacheInvGroups)),
+		("invtypes"                   , (  0,   0, util.IndexRowset    , InvType           , "typeID"            , const.cacheInvTypes)),
+		("invmetagroups"              , (  0,   0, util.IndexRowset    , InvMetaGroup      , "metaGroupID"       , const.cacheInvMetaGroups)),
+		("invbptypes"                 , (  0,   0, util.IndexRowset    , util.Row          , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
+		("invreactiontypes"           , (  0,   0, util.FilterRowset   , util.Row          , "reactionTypeID"    , const.cacheInvTypeReactions)),
+		("shiptypes"                  , (  0,   0, util.IndexRowset    , util.Row          , "shipTypeID"        , const.cacheShipTypes)),
 
-		("dgmattribs"                 , (  0,   0, None              , ItemsRecordset      , DgmAttribute      , "attributeID"       , const.cacheDogmaAttributes)),
-		("dgmeffects"                 , (  0,   0, None              , ItemsRecordset      , DgmEffect         , "effectID"          , const.cacheDogmaEffects)),
-		("dgmtypeattribs"             , (  0,   0, None              , util.IndexedRowLists, util.Row          , ('typeID',)         , const.cacheDogmaTypeAttributes)),
-		("dgmtypeeffects"             , (  0,   0, None              , util.IndexedRowLists, util.Row          , ('typeID',)         , const.cacheDogmaTypeEffects)),
-		("dgmexpressions"             , (297,   0, None              , Recordset           , util.Row          , 'expressionID'      , const.cacheDogmaExpressions)),
+		("dgmattribs"                 , (  0,   0, util.IndexRowset    , DgmAttribute      , "attributeID"       , const.cacheDogmaAttributes)),
+		("dgmeffects"                 , (  0,   0, util.IndexRowset    , DgmEffect         , "effectID"          , const.cacheDogmaEffects)),
+		("dgmtypeattribs"             , (  0,   0, util.IndexedRowLists, None              , ('typeID',)         , const.cacheDogmaTypeAttributes)),
+		("dgmtypeeffects"             , (  0,   0, util.IndexedRowLists, None              , ('typeID',)         , const.cacheDogmaTypeEffects)),
+		("dgmexpressions"             , (297,   0, util.IndexRowset    , util.Row          , 'expressionID'      , const.cacheDogmaExpressions)),
+		("dgmunits"                   , (299,   0, util.IndexRowset    , util.Row          , "unitID"            , const.cacheDogmaUnits)),
 
-		("eveunits"                   , (  0,   0, "units"           , Recordset           , util.Row          , "unitID"            , const.cacheDogmaUnits)),
+		("ramaltypes"                 , (  0,   0, util.IndexRowset    , util.Row          , "assemblyLineTypeID", const.cacheRamAssemblyLineTypes)),
+		("ramactivities"              , (  0,   0, util.IndexRowset    , RamActivity       , "activityID"        , const.cacheRamActivities)),
+		("ramcompletedstatuses"       , (276,   0, util.IndexRowset    , RamCompletedStatus, "completedStatus"   , const.cacheRamCompletedStatuses)),
+		("ramaltypesdetailpercategory", (  0,   0, util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesCategory)),
+		("ramaltypesdetailpergroup"   , (  0,   0, util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesGroup)),
 
-		("ramaltypes"                 , (  0,   0, None              , Recordset           , util.Row          , "assemblyLineTypeID", const.cacheRamAssemblyLineTypes)),
-		("ramactivities"              , (  0,   0, None              , Recordset           , RamActivity       , "activityID"        , const.cacheRamActivities)),
-		("ramcompletedstatuses"       , (  0, 276, None              , Recordset           , RamCompletedStatus, "completedStatusID" , None)),
-		("ramcompletedstatuses"       , (276,   0, None              , Recordset           , RamCompletedStatus, "completedStatus"   , const.cacheRamCompletedStatuses)),
-		("ramaltypesdetailpercategory", (  0,   0, None              , util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesCategory)),
-		("ramaltypesdetailpergroup"   , (  0,   0, None              , util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesGroup)),
+		("billtypes"                  , (  0,   0, util.IndexRowset    , Billtype          , 'billTypeID'        , const.cacheActBillTypes)),
+		("certificates"               , (  0,   0, util.IndexRowset    , Certificate       , "certificateID"     , const.cacheCertificates)),
+		("certificaterelationships"   , (  0,   0, util.IndexRowset    , util.Row          , "relationshipID"    , const.cacheCertificateRelationships)),
 
-		("billtypes"                  , (  0,   0, None              , Recordset           , Billtype          , 'billTypeID'        , const.cacheActBillTypes)),
-		("certificates"               , (  0,   0, None              , Recordset           , Certificate       , "certificateID"     , const.cacheCertificates)),
-		("certificaterelationships"   , (  0,   0, None              , Recordset           , util.Row          , "relationshipID"    , const.cacheCertificateRelationships)),
+		("schematics"                 , (242,   0, util.IndexRowset    , Schematic         , 'schematicID'       , const.cachePlanetSchematics)),
+		("ramtyperequirements"        , (242,   0, dict                , None          , ('typeID', 'activityID'), const.cacheRamTypeRequirements)),
+		("invtypematerials"           , (254,   0, dict                , None              , 'typeID'            , const.cacheInvTypeMaterials)),
 
-		("mapcelestialdescriptions"   , (  0, 276, None              , Recordset           , MapCelestialDescription, "celestialID"  , None)),
-		("mapcelestialdescriptions"   , (276,   0, None              , Recordset           , MapCelestialDescription, "itemID"       , const.cacheMapCelestialDescriptions)),
-		("locationwormholeclasses"    , (  0,   0, None              , Recordset           , util.Row          , "locationID"        , const.cacheMapLocationWormholeClasses)),
-		("locationscenes"             , (242, 298, None              , Recordset           , util.Row          , 'locationID'        , const.cacheMapLocationScenes)),
 
-		("schematics"                 , (242,   0, None              , Recordset           , Schematic         , 'schematicID'       , const.cachePlanetSchematics)),
-		("schematicstypemap"          , (242,   0, None              , util.FilterRowset   , None              , 'schematicID'       , const.cachePlanetSchematicsTypeMap)),  # custom loader!
-		("schematicsByType"           , (242,   0, None              , util.FilterRowset   , None              , 'typeID'            , const.cachePlanetSchematicsTypeMap)),  # custom loader!
-		("schematicspinmap"           , (242,   0, None              , util.FilterRowset   , None              , 'schematicID'       , const.cachePlanetSchematicsPinMap)),  # custom loader!
-		("schematicsByPin"            , (242,   0, None              , util.FilterRowset   , None              , 'pinTypeID'         , const.cachePlanetSchematicsPinMap)),  # custom loader!
+#		("planetattributes"           , (242,   0, None                , None              , None)),  # N/A
 
-		("ramtyperequirements"        , (242,   0, None              , dict                , None          , ('typeID', 'activityID'), const.cacheRamTypeRequirements)),
-		("ramtypematerials"           , (242, 254, None              , dict                , None              , 'typeID'            , None)),
-		("invtypematerials"           , (254,   0, None              , dict                , None              , 'typeID'            , const.cacheInvTypeMaterials)),
 
-		("evelocations"               , (  0,   0, "locations"       , Recordset           , EveLocations      , "locationID"        , None)),  # custom loader!
-		("factions"                   , (276,   0, None              , Recordset           , util.Row          , "factionID"         , const.cacheChrFactions)),
-		("npccorporations"            , (276,   0, None              , Recordset           , util.Row          , "corporationID"     , const.cacheCrpNpcCorporations)),
-		("eveowners"                  , (  0,   0, "owners"          , Recordset           , EveOwners         , "ownerID"           , const.cacheChrNpcCharacters)),  # custom loader!
-		("corptickernames"            , (  0,   0, "tickernames"     , Recordset           , CrpTickerNames    , "corporationID"     , const.cacheCrpTickerNamesStatic)),
+		# location/owner stuff.
+		("factions"                   , (276,   0, util.IndexRowset    , util.Row          , "factionID"         , const.cacheChrFactions)),
+		("npccorporations"            , (276,   0, util.IndexRowset    , util.Row          , "corporationID"     , const.cacheCrpNpcCorporations)),
+		("corptickernames"            , (  0,   0, util.IndexRowset    , CrpTickerNames    , "corporationID"     , const.cacheCrpTickerNamesStatic)),
 
-#		("planetattributes"           , (242,   0, None              , None                , None              , None)),  # N/A
+		("staoperationtypes"          , (299,   0, util.IndexRowset    , util.Row          , "operationID"       , const.cacheStaOperations)),
+		("mapcelestialdescriptions"   , (276,   0, util.IndexRowset    , MapCelestialDescription, "itemID"       , const.cacheMapCelestialDescriptions)),
+		("locationwormholeclasses"    , (  0,   0, util.IndexRowset    , util.Row          , "locationID"        , const.cacheMapLocationWormholeClasses)),
 
-		# FIXME for 276+
+		("regions"                    , (299,   0, util.IndexRowset    , util.Row          , "regionID"          , const.cacheMapRegionsTable)),
+		("constellations"             , (299,   0, util.IndexRowset    , util.Row          , "constellationID"   , const.cacheMapConstellationsTable)),
+		("solarsystems"               , (299,   0, util.IndexRowset    , util.Row          , "solarSystemID"     , const.cacheMapSolarSystemsTable)),
+		("stations"                   , (299,   0, util.IndexRowset    , util.Row          , "stationID"         , const.cacheStaStationsStatic)),
 
-		# this seems to be gone.
-		("ownericons"                 , (242, 276, None              , Recordset           , util.Row          , 'ownerID'           , None)),
+		("nebulas"                    , (299,   0, util.IndexRowset    , util.Row          , "locationID"        , const.cacheMapNebulas)),
 
-		# this seems to be on-demand now, not in bulkdata.
-		("allianceshortnames"         , (  0, 276, None              , Recordset           , AllShortNames     , "allianceID"        , None)),
+		# autogenerated FilterRowsets from some of the above tables
+		("groupsByCategories"         , (  0,   0, "invgroups"         , None              , "categoryID"        , None)),
+		("typesByGroups"              , (  0,   0, "invtypes"          , None              , "groupID"           , None)),
+		("typesByMarketGroups"        , (  0,   0, "invtypes"          , None              , "marketGroupID"     , None)),
 
-		# location stuff.
-		("regions"                    , (299,   0, None              , Recordset           , util.Row          , "regionID"          , const.cacheMapRegionsTable)),
-		("constellations"             , (299,   0, None              , Recordset           , util.Row          , "constellationID"   , const.cacheMapConstellationsTable)),
-		("solarsystems"               , (299,   0, None              , Recordset           , util.Row          , "solarSystemID"     , const.cacheMapSolarSystemsTable)),
-		("stations"                   , (299,   0, None              , Recordset           , util.Row          , "stationID"         , const.cacheStaStationsStatic)),
-		("evelocations"               , (  0,   0, "locations"       , Recordset           , EveLocations      , "locationID"        , None)),  # custom loader!
+		# tables that have custom loaders
+		("eveowners"                  , (299,   0)),
+		("evelocations"               , (299,   0)),
+		("invmetatypes"               , (  0,   0)),
+		("invmetatypesByTypeID"       , (  0,   0)),
+		("invcontrabandTypesByFaction", (  0,   0)),
+		("invcontrabandTypesByType"   , (  0,   0)),
+		("schematicstypemap"          , (242,   0)),
+		("schematicsByType"           , (242,   0)),
+		("schematicspinmap"           , (242,   0)),
+		("schematicsByPin"            , (242,   0)),
+
+		# new FSD stuff --------------- (ver, del, resource name in stuff, cache size)
+		("graphics"                   , (327,   0, "graphicIDs"          , 100)),
+		("fsdTypeOverrides"           , (327,   0, "typeIDs"             , None)),
+		("fsdPlanetAttributes"        , (327,   0, "planetAttributes"    , 100)),
 	)
+
 
 	# Custom table loader methods follow
 
 	@_memoize
 	def eveowners(self):
-		if self.protocol >= 276:
-			bloodlinesToTypes = {
-				const.bloodlineDeteis   : const.typeCharacterDeteis,
-				const.bloodlineCivire   : const.typeCharacterCivire,
-				const.bloodlineSebiestor: const.typeCharacterSebiestor,
-				const.bloodlineBrutor   : const.typeCharacterBrutor,
-				const.bloodlineAmarr    : const.typeCharacterAmarr,
-				const.bloodlineNiKunni  : const.typeCharacterNiKunni,
-				const.bloodlineGallente : const.typeCharacterGallente,
-				const.bloodlineIntaki   : const.typeCharacterIntaki,
-				const.bloodlineStatic   : const.typeCharacterStatic,
-				const.bloodlineModifier : const.typeCharacterModifier,
-				const.bloodlineAchura   : const.typeCharacterAchura,
-				const.bloodlineJinMei   : const.typeCharacterJinMei,
-				const.bloodlineKhanid   : const.typeCharacterKhanid,
-				const.bloodlineVherokior: const.typeCharacterVherokior
-			}
+		bloodlinesToTypes = {
+			const.bloodlineDeteis   : const.typeCharacterDeteis,
+			const.bloodlineCivire   : const.typeCharacterCivire,
+			const.bloodlineSebiestor: const.typeCharacterSebiestor,
+			const.bloodlineBrutor   : const.typeCharacterBrutor,
+			const.bloodlineAmarr    : const.typeCharacterAmarr,
+			const.bloodlineNiKunni  : const.typeCharacterNiKunni,
+			const.bloodlineGallente : const.typeCharacterGallente,
+			const.bloodlineIntaki   : const.typeCharacterIntaki,
+			const.bloodlineStatic   : const.typeCharacterStatic,
+			const.bloodlineModifier : const.typeCharacterModifier,
+			const.bloodlineAchura   : const.typeCharacterAchura,
+			const.bloodlineJinMei   : const.typeCharacterJinMei,
+			const.bloodlineKhanid   : const.typeCharacterKhanid,
+			const.bloodlineVherokior: const.typeCharacterVherokior
+		}
 
-			if self.compatibility:
-				rs = Recordset(EveOwners, 'ownerID', self)
-				rs.header = ['ownerID', 'ownerName', 'typeID']
-				d = rs.data
-			else:
-				rs = util.IndexRowset(['ownerID', 'ownerName', 'typeID'], None, key="ownerID", RowClass=EveOwners, cfgInstance=self)
-				d = rs.items
+		rs = util.IndexRowset(['ownerID', 'ownerName', 'typeID', 'gender', 'ownerNameID'], None, key="ownerID", RowClass=EveOwners, cfgInstance=self)
+		d = rs.items
 
-			rd = blue.DBRowDescriptor((('ownerID', const.DBTYPE_I4), ('ownerName', const.DBTYPE_WSTR), ('typeID', const.DBTYPE_I2)))
+		rd = blue.DBRowDescriptor((
+			('ownerID', const.DBTYPE_I4),
+			('ownerName', const.DBTYPE_WSTR),
+			('typeID', const.DBTYPE_I2),
+			('gender', const.DBTYPE_I2),
+			('ownerNameID', const.DBTYPE_I4),
+		))
 
-			DBRow = blue.DBRow
-			for row in self.factions:
-				id_ = row.factionID
-				d[id_] = DBRow(rd, [id_, row.factionName, const.typeFaction])
+		DBRow = blue.DBRow
+		for row in self.factions:
+			id_ = row.factionID
+			d[id_] = DBRow(rd, [id_, row.factionName, const.typeFaction, 0, row.factionNameID])
 
-			for row in self.npccorporations:
-				id_ = row.corporationID
-				d[id_] = DBRow(rd, [id_, row.corporationName, const.typeCorporation])
+		for row in self.npccorporations:
+			id_ = row.corporationID
+			d[id_] = DBRow(rd, [id_, row.corporationName, const.typeCorporation, 0, row.corporationNameID])
 
+		if self._languageID:
+			# cerberus version
 			for row in self.cache.LoadBulk(const.cacheChrNpcCharacters):
 				id_ = row.characterID
-				d[id_] = DBRow(rd, [id_, row.characterName, bloodlinesToTypes[row.bloodlineID]])
+				npcName = self._localization.GetImportantByMessageID(id_) or row.characterName
+				d[id_] = DBRow(rd, [id_, row.characterName, bloodlinesToTypes[row.bloodlineID], row.gender, row.characterNameID])
 
-			d[1] = DBRow(rd, [1, 'EVE System', 0])
-
+			auraName = self._localization.GetImportantByLabel(_OWNER_NAME_OVERRIDES[OWNER_AURA_IDENTIFIER])
+			sysName = self._localization.GetByLabel(_OWNER_NAME_OVERRIDES[OWNER_SYSTEM_IDENTIFIER])
 		else:
-			rs = self._loadbulkdata("owners", Recordset, EveOwners, "ownerID")
-			self._loadbulkdata("config.StaticOwners", dest=rs)
+			# non-cerberus version
+			for row in self.cache.LoadBulk(const.cacheChrNpcCharacters):
+				id_ = row.characterID
+				npcName = row.characterName
+				d[id_] = DBRow(rd, [id_, row.characterName, bloodlinesToTypes[row.bloodlineID], row.gender, row.characterNameID])
+
+			auraName = "Aura"
+			sysName = "EVE System"
+
+		for id_ in const.auraAgentIDs:
+			d[id_].ownerName = auraName
+		d[1] = blue.DBRow(rd, [1, sysName, 0, None, None])
 
 		rs.lines = rs.items.values()
 		return rs
@@ -679,33 +669,64 @@ class Config(object):
 
 	@_memoize
 	def evelocations(self):
-		if self.protocol >= 276:
-			if self.compatibility:
-				rs = Recordset(EveLocations, 'locationID', self)
-				rs.header = ['locationID', 'locationName', 'x', 'y', 'z']
-				d = rs.data
-			else:
-				rs = util.IndexRowset(['locationID', 'locationName', 'x', 'y', 'z'], None, key="locationID", RowClass=EveLocations, cfgInstance=self)
-				d = rs.items
+		rs = util.IndexRowset(['locationID', 'locationName', 'x', 'y', 'z', 'locationNameID'], None, key="locationID", RowClass=EveLocations, cfgInstance=self)
+		d = rs.items
 
-			rd = blue.DBRowDescriptor((('locationID', const.DBTYPE_I4), ('locationName', const.DBTYPE_WSTR), ('x', const.DBTYPE_R8), ('y', const.DBTYPE_R8), ('z', const.DBTYPE_R8)))
-			DBRow = blue.DBRow
+		rd = blue.DBRowDescriptor((
+			('locationID', const.DBTYPE_I4),
+			('locationName', const.DBTYPE_WSTR),
+			('x', const.DBTYPE_R8),
+			('y', const.DBTYPE_R8),
+			('z', const.DBTYPE_R8),
+			('locationNameID', const.DBTYPE_I4),
+		))
 
-			for table, name in (
-				(self.regions, "region"),
-				(self.constellations, "constellation"),
-				(self.solarsystems, "solarSystem"),
-				(self.stations, "station"),
-			):
-				hdr = table.header
-				id_ix = hdr.index(name + "ID")
+		DBRow = blue.DBRow
+
+		if self._languageID:
+			getname = self._localization.GetImportantByMessageID
+
+		for table, name in (
+			(self.regions, "region"),  # 1xxxxxxx
+			(self.constellations, "constellation"),  # 2xxxxxxx
+			(self.solarsystems, "solarSystem"),  # 3xxxxxxx
+			(self.stations, "station"),  # 6xxxxxxx
+		):
+			hdr = table.header
+			id_ix = hdr.index(name + "ID")
+
+			try:
+				nameid_ix = hdr.index(name + "NameID")
+				if self._languageID:
+					for row in table.lines:
+						id_ = row[id_ix]
+						nameID = row[nameid_ix]
+						d[id_] = DBRow(rd, [id_, getname(nameID), row.x, row.y, -row.z, nameID])
+				else:
+					name_ix = hdr.index(name + "Name")
+					for row in table.lines:
+						id_ = row[id_ix]
+						d[id_] = DBRow(rd, [id_, row[name_ix], row.x, row.y, -row.z, row[nameid_ix]])
+
+			except ValueError:
+				# no nameID.
 				name_ix = hdr.index(name + "Name")
 				for row in table.lines:
 					id_ = row[id_ix]
-					d[id_] = DBRow(rd, [id_, row[name_ix], row.x, row.y, -row.z])
-		else:
-			rs = self._loadbulkdata("locations", Recordset, EveLocations, "locationID")
-			self._loadbulkdata("config.StaticLocations", dest=rs)
+					d[id_] = DBRow(rd, [id_, row[name_ix], row.x, row.y, -row.z, None])
+
+
+		# set evelocations attr here, because the following code needs
+		# to access the table to generate the planet names.
+		self.evelocations = rs
+
+#		# get stars, planets, belts and moons.
+#		sql = 'SELECT * FROM celestials WHERE celestialID >= 40000000 AND celestialID < 60000000'
+#		for row in self.localdb.execute(sql):
+#			celestialName = self.GetCelestialNameFromLocalRow(row)
+#			#self.rawCelestialCache[row['celestialID']] = celestialNameData
+#			d[row['celestialID']] = blue.DBRow(rd, [row['celestialID'], celestialName, row['x'], row['y'], row['z'], 0])
+
 
 		rs.lines = rs.items.values()
 		return rs
@@ -717,21 +738,21 @@ class Config(object):
 		byFaction = self.invcontrabandTypesByFaction = {}
 		byType = self.invcontrabandFactionsByType = {}
 
-		if self.protocol >= 276:
-			obj = self.cache.LoadBulk(const.cacheInvContrabandTypes)
-		else:
-			obj = self.cache.LoadObject("config.InvContrabandTypes")
+		obj = self.cache.LoadBulk(const.cacheInvContrabandTypes)
 
 		for each in obj:
 			typeID = each.typeID
 			factionID = each.factionID
 
-			if factionID not in byFaction:
-				byFaction[factionID] = {}
-			byFaction[factionID][typeID] = each
-			if typeID not in byType:
-				byType[typeID] = {}
-			byType[typeID][factionID] = each
+			if factionID in byFaction:
+				byFaction[factionID][typeID] = each
+			else:
+				byFaction[factionID] = {typeID:each}
+
+			if typeID in byType:
+				byType[typeID][factionID] = each
+			else:
+				byType[typeID] = {factionID: each}
 
 	@_memoize
 	def invcontrabandTypesByFaction(self):
@@ -747,11 +768,7 @@ class Config(object):
 	#--
 
 	def _schematicstypemap_load(self):
-		if self.protocol >= 276:
-			obj = self.cache.LoadBulk(const.cachePlanetSchematicsTypeMap)
-		else:
-			obj = self.cache.LoadObject("config.BulkData.schematicstypemap")
-
+		obj = self.cache.LoadBulk(const.cachePlanetSchematicsTypeMap)
 		header = obj.header.Keys()
 		self.schematicstypemap = util.FilterRowset(header, obj, "schematicID")
 		self.schematicsByType = util.FilterRowset(header, obj, "typeID")
@@ -769,11 +786,7 @@ class Config(object):
 	#--
 
 	def _schematicspinmap_load(self):
-		if self.protocol >= 276:
-			obj = self.cache.LoadBulk(const.cachePlanetSchematicsPinMap)
-		else:
-			obj = self.cache.LoadObject("config.BulkData.schematicspinmap")
-
+		obj = self.cache.LoadBulk(const.cachePlanetSchematicsPinMap)
 		header = obj.header.Keys()
 		self.schematicspinmap = util.FilterRowset(header, obj, "schematicID")
 		self.schematicsByPin = util.FilterRowset(header, obj, "pinTypeID")
@@ -791,19 +804,10 @@ class Config(object):
 	#--
 
 	def _invmetatypes_load(self):
-		if self.protocol >= 276:
-			obj = self.cache.LoadBulk(const.cacheInvMetaTypes)
-		else:
-			obj = self.cache.LoadObject("config.BulkData.invmetatypes")
-
-		if type(obj) is tuple:
-			# old style.
-			self.invmetatypes = util.FilterRowset(obj[0], obj[1], "parentTypeID")
-			self.invmetatypesByTypeID = util.FilterRowset(obj[0], obj[1], "typeID")
-		else:
-			header = obj.header.Keys()
-			self.invmetatypes = util.FilterRowset(header, obj, "parentTypeID")
-			self.invmetatypesByTypeID = util.FilterRowset(header, obj, "typeID")
+		obj = self.cache.LoadBulk(const.cacheInvMetaTypes)
+		header = obj.header.Keys()
+		self.invmetatypes = util.FilterRowset(header, obj, "parentTypeID")
+		self.invmetatypesByTypeID = util.FilterRowset(header, obj, "typeID")
 
 	@_memoize
 	def invmetatypes(self):
@@ -817,11 +821,19 @@ class Config(object):
 
 	#--
 
-	def __init__(self, cache, compatibility=False):
+	@_memoize
+	def _localization(self):
+		if not self._languageID:
+			raise RuntimeError("Cerberus started without languageID set")
+		return localization.Localization(self.cache.root, self._languageID, cfgInstance=self)
+
+	#--
+
+	def __init__(self, cache, languageID=None):
 		self.cache = cache
 		self.callback = None
-		self.compatibility = compatibility
 		protocol = self.protocol = self.cache.machoVersion
+		self._languageID = languageID
 
 		# Figure out the set of tables managed by this instance.
 		# Only tables that are available for this instance's particular
@@ -830,11 +842,15 @@ class Config(object):
 		self._tables = dict(((k, v) for k, v in self.__tables__ if protocol >= v[0] and protocol < v[1] or 2147483647))
 		self.tables = frozenset(( \
 			attrName for attrName in dir(self.__class__) \
-			if isinstance(getattr(self.__class__, attrName), _memoize) \
+			if attrName[0] != "_" \
+			and isinstance(getattr(self.__class__, attrName), _memoize) \
 			and protocol >= self._tables[attrName][0] \
 			and protocol < (self._tables[attrName][1] or 2147483647) \
 		))
 		self._attrCache = {}
+
+		self.localdb = sqlite3.connect(os.path.join(self.cache.BULK_SYSTEM_PATH, "mapbulk.db"))
+		self.localdb.row_factory = sqlite3.Row
 
 
 	def release(self):
@@ -849,111 +865,64 @@ class Config(object):
 		self._attrCache = {}
 
 
-	def _loadbulkdata(self, tableName=None, storageClass=None, rowClass=None, primaryKey=None, dest=None, bulkID=None):
+	def _loadfsddata(self, tableName, resName, cacheNum):
+		# FileStaticData loader.
+		# Grabs schema and binary blob from .stuff file.
+		res = self._eve.ResFile()
+		resFileName = "res:/staticdata/%s.schema" % resName
+		if not res.Open(resFileName):
+			raise RuntimeError("Could not load FSD data schema '%s'" % resFileName)
 
-		fullTableName = tableName if tableName.startswith("config.") else "config.BulkData."+tableName
+		schema = fsd.LoadSchema(res.Read())
+		schema = fsd.GetUnOptimizedRuntimeSchema(schema)
+		schema = fsd.OptimizeSchema(schema, "Client")
 
-		if dest:
-			# This is hint data; just add it to the specified table (dest)
-			# Assumes dest is an IndexRowset compatible object.
+		resFileName = "res:/staticdata/%s.static" % resName
+		if not res.Open(resFileName):
+			raise RuntimeError("Could not load FSD static data '%s'" % resFileName)
+
+		if cacheNum:
+			return fsd.LoadIndexFromFile(res.fh, schema, cacheNum)
+
+		return fsd.LoadFromString(res.Read(), schema)
 
 
-			if self.protocol >= 276:
-				# Incarna 1.0.2 load method
-				obj = self.cache.LoadBulk(bulkID)
-			else:
-				# legacy load method
-				obj = self.cache.LoadObject(tableName)
-
-			if not obj:
-				raise RuntimeError("table '%s' (%d) not found in bulkdata" % (tableName, bulkID))
-
-			rs = dest
-			if type(obj) is not dbutil.CRowset:
-				# pre-Tyrannis (protocol 235) this was a Rowset, not a CRowset.
-				obj = obj.lines
-
-			# add the lines
-			rs.lines.extend(obj)
-
-			# fix index
-			ki = rs.key
-			i = rs.items
-			for line in obj:
-				i[line[ki]] = line
-
-			return rs
+	def _loadbulkdata(self, tableName=None, storageClass=None, rowClass=None, primaryKey=None, bulkID=None):
 
 		if type(storageClass) is str:
 			# create a FilterRowset from existing table named by storageClass.
 			table = getattr(self, storageClass)
-			if self.compatibility:
-				rs = util.FilterRowset(table.header, table.data.values(), primaryKey)
-			else:
-				rs = table.GroupedBy(primaryKey)
+			rs = table.GroupedBy(primaryKey)
 			return rs
 
-		if self.protocol >= 276:
-			# Incarna 1.0.2 load method
-			obj = self.cache.LoadBulk(bulkID)
-		else:
-			# legacy load method
-			obj = self.cache.LoadObject(fullTableName)
-
-		if issubclass(storageClass, Recordset):
-			if self.compatibility:
-				# use the Recordsets like EVE, for compatibility (don't ask).
-
-				rs = storageClass(rowClass, primaryKey, self)
-				data = rs.data
-
-				if type(obj) is dbutil.CRowset:
-					rs.header = obj.header.Keys()
-					keycol = rs.header.index(primaryKey)
-					for i in obj:
-						a = list(i)
-						data[a[keycol]] = a
-				else:
-					rs.header = obj[0]
-					keycol = rs.header.index(primaryKey)
-					for i in obj[1]:
-						data[i[keycol]] = i
-			else:
-				# Custom loading; uses IndexRowset for the data instead of Recordset.
-				# Faster, and IndexRowsets have more functionality.
-				if type(obj) is dbutil.CRowset:
-					rs = util.IndexRowset(obj.header.Keys(), obj, key=primaryKey, RowClass=rowClass, cfgInstance=self)
-				else:
-					rs = util.IndexRowset(obj[0], obj[1], key=primaryKey, RowClass=rowClass, cfgInstance=self)
+		obj = self.cache.LoadBulk(bulkID)
+		if obj is None:
+			raise RuntimeError("Unable to load '%s' (bulkID:%d)" % (tableName, bulkID))
+		
+		if issubclass(storageClass, util.IndexRowset):
+			rs = util.IndexRowset(obj.header.Keys(), obj, key=primaryKey, RowClass=rowClass, cfgInstance=self)
 
 		elif issubclass(storageClass, util.FilterRowset):
-			rs = storageClass(obj.header.Keys(), obj, primaryKey)
+			rs = storageClass(obj.header.Keys(), obj, primaryKey, RowClass=rowClass)
 
 		elif issubclass(storageClass, util.IndexedRowLists):
 			rs = storageClass(obj, keys=primaryKey)
 
-		elif issubclass(storageClass, util.IndexRowset):
-			if type(obj) is tuple:
-				# old style.
-				rs = storageClass(obj[0], obj[1], "shipTypeID")
-			else:
-				rs = storageClass(obj.header.Keys(), obj, "shipTypeID")
-
 		elif issubclass(storageClass, dict):
 			rs = {}
 			if type(primaryKey) is tuple:
+				# composite key
 				getkey = lambda row: tuple(map(row.__getitem__, primaryKey))
 			else:
 				getkey = lambda row: getattr(row, primaryKey)
 
 			for row in obj:
 				key = getkey(row)
-				li = rs.get(key, False)
-				if li:
-					li.append(row)
-				else:
+				li = rs.get(key)
+				if li is None:
 					rs[key] = [row]
-
+				else:
+					li.append(row)
 		else:
 			raise RuntimeError("Invalid storageClass: %s" % storageClass)
 
@@ -976,7 +945,8 @@ which will be called as func(current, total, tableName).
 			print >>sys.stderr, "LOADING STATIC DATABASE"
 			print >>sys.stderr, "  machoCachePath:", self.cache.machocachepath
 			print >>sys.stderr, "  machoVersion:", self.cache.machoVersion
-
+			print >>sys.stderr, "  bulk system path:", self.cache.BULK_SYSTEM_PATH
+			print >>sys.stderr, "  bulk cache path:", self.cache.BULK_CACHE_PATH
 		try:
 			if tables is None:
 				# preload everything.
@@ -1062,17 +1032,129 @@ which will be called as func(current, total, tableName).
 	def GetTypeAttribute2(self, typeID, attributeID):
 		"""Return specified dogma attribute for given type, or default attribute value."""
 		attr = self.GetTypeAttrDict(typeID)
-		value = attr.get(attributeID, None)
+		value = attr.get(attributeID)
 		if value is None:
 			return self.dgmattribs.Get(attributeID).defaultValue
 		return value
 
 
 	def GetLocationWormholeClass(self, solarSystemID, constellationID, regionID):
-		rec = self.locationwormholeclasses.Get(solarSystemID, None) \
-		or self.locationwormholeclasses.Get(constellationID, None) \
-		or self.locationwormholeclasses.Get(regionID, None)
+		get = self.locationwormholeclasses.Get
+		rec = get(solarSystemID) or get(constellationID) or get(regionID)
 		if rec:
 			return rec.wormholeClassID
 		return 0
 
+
+	@staticmethod
+	def _GetCelestialNameDataFromLocalRow(self, row):
+		celestialGroupID = row['groupID']
+		celestialNameID = row['celestialNameID']
+
+		if celestialNameID is not None and celestialGroupID != const.groupStargate:
+			label = 'UI/Util/GenericText'
+			param = {'text': celestialNameID}
+		elif celestialGroupID == const.groupAsteroidBelt:
+			label = 'UI/Locations/LocationAsteroidBeltFormatter'
+			param = {'solarSystemID': row['solarSystemID'], 'romanCelestialIndex': util.IntToRoman(row['celestialIndex']), 'typeID': row['typeID'], 'orbitIndex': row['orbitIndex']}
+		elif celestialGroupID == const.groupMoon:
+			label = 'UI/Locations/LocationMoonFormatter'
+			param = {'solarSystemID': row['solarSystemID'], 'romanCelestialIndex': util.IntToRoman(row['celestialIndex']), 'orbitIndex': row['orbitIndex']}
+		elif celestialGroupID == const.groupPlanet:
+			label = 'UI/Locations/LocationPlanetFormatter'
+			param = {'solarSystemID': row['solarSystemID'], 'romanCelestialIndex': util.IntToRoman(row['celestialIndex'])}
+		elif celestialGroupID == const.groupStargate:
+			label = 'UI/Locations/LocationStargateFormatter'
+			param = {'destinationSystemID': row['celestialNameID']}
+		elif celestialGroupID == const.groupSun:
+			label = 'UI/Locations/LocationStarFormatter'
+			param = {'solarSystemID': row['solarSystemID']}
+		else:
+			label = None
+			param = None
+
+		return label, param
+
+
+	def GetCelestialNameFromLocalRow(self, row):
+		# row keys:
+		# ['celestialID', 'celestialNameID', 'solarSystemID', 'typeID', 'groupID', 'radius', 'x', 'y', 'z', 'orbitID', 'orbitIndex', 'celestialIndex']
+
+		if self._languageID:
+			# Fetch name through cerberus
+			label, param = self._GetCelestialNameDataFromLocalRow(row)
+			return self._localization.GetByLabel(label, **param)
+
+		celestialGroupID = row['groupID']
+		celestialNameID = row['celestialNameID']
+
+		if celestialNameID is not None and celestialGroupID != const.groupStargate:
+			try:
+				return const._NAMED_CELESTIALS[row['celestialID']]
+			except KeyError:
+				raise RuntimeError("Hardcoded celestial names table incomplete.")
+
+		if celestialGroupID == const.groupAsteroidBelt:
+			return "%s %s - %s %d" % (
+				self.solarsystems.Get(row['solarSystemID']).solarSystemName, util.IntToRoman(row['celestialIndex']), self.invtypes.Get(row['typeID']).name, row['orbitIndex'])
+		elif celestialGroupID == const.groupMoon:
+			return "%s %s - Moon %d" % (
+				self.solarsystems.Get(row['solarSystemID']).solarSystemName, util.IntToRoman(row['celestialIndex']), row['orbitIndex'])
+		elif celestialGroupID == const.groupPlanet:
+			return "%s %s" % (
+				self.solarsystems.Get(row['solarSystemID']).solarSystemName, util.IntToRoman(row['celestialIndex']))
+		elif celestialGroupID == const.groupStargate:
+			return self.solarsystems.Get(row['celestialNameID']).solarSystemName
+		elif celestialGroupID == const.groupSun:
+			return "%s - Star" % self.solarsystems.Get(row['solarSystemID']).solarSystemName
+		else:
+			return ""
+
+
+	def GetNPCStationNameFromLocalRow(self, row):
+		if self._languageID:
+			if row['useOperationName']:
+				operationNameID = self.staoperationtypes.Get(row['operationID']).operationNameID
+				operationName = self._localization.GetByMessageID(operationNameID)
+				#operationNameEN = self._localization.GetByMessageID(operationNameID, "en-us")
+			else:
+				operationName = ''
+				#operationNameEN = ''
+			locName = self._localization.GetByLabel('UI/Locations/LocationNPCStationFormatter', orbitID=row['orbitID'], corporationID=row['ownerID'], operationName=operationName)
+			#locNameEN = localization.GetByLabel('UI/Locations/LocationNPCStationFormatter', "en-us", orbitID=row['orbitID'], corporationID=row['ownerID'], operationName=operationNameEN)
+			#return localization.FormatImportantString(locName, locNameEN)
+			return locName
+
+		# non-cerberus version
+		return self.stations.Get(row['stationID']).stationName
+
+
+	def GetLocationsLocalBySystem(self, solarSystemID):
+		data = []
+
+		# local aliasing ftw.
+		append = data.append
+		DBRow = blue.DBRow
+		get = self.invtypes.Get
+
+		sql = 'SELECT * FROM celestials WHERE solarSystemID=%d' % solarSystemID
+		rs = self.localdb.execute(sql)
+		for row in rs:
+			celestialName = self.GetCelestialNameFromLocalRow(row)
+			append(DBRow(_solarSystemObjectRowDescriptor, [
+				row['groupID'], row['typeID'], row['celestialID'],
+				celestialName, solarSystemID, row['orbitID'], None,
+				row['x'], row['y'], row['z']
+			]))
+
+		sql = 'SELECT * FROM npcStations WHERE solarSystemID=%d' % solarSystemID
+		rs = self.localdb.execute(sql)
+		for row in rs:
+			celestialName = self.GetNPCStationNameFromLocalRow(row)
+			append(DBRow(_solarSystemObjectRowDescriptor, [
+				get(row['typeID']).groupID, row['typeID'], row['stationID'],
+				celestialName, solarSystemID, row['orbitID'], None,
+				row['x'], row['y'], row['z']
+			]))
+
+		return dbutil.CRowset(_solarSystemObjectRowDescriptor, data)

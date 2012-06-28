@@ -22,9 +22,6 @@ from . import _blue as blue
 from . import const, util, dbutil
 from . import localization, fsd
 
-#import carbon.staticData.schema.persistence as fsdSchemaPersistence
-#import carbon.staticData.schema.binaryLoader as fsdBinaryLoader
-#import carbon.staticData.schema.schemaOptimizer as fsdSchemaOptimizer
 
 _get = util.Row.__getattr__
 
@@ -154,10 +151,7 @@ class InvMetaGroup(util.Row):
 		if name == "name":
 			name = "metaGroupName"
 
-		value = _get(self, name)
-#		if name == "metaGroupName":
-#			return self.cfg.Tr(value, "inventory.metaGroups.metaGroupName", self.dataID)
-		return value
+		return _get(self, name)
 
 
 class DgmAttribute(util.Row):

@@ -282,15 +282,15 @@ class CacheMgr:
 
 	def LoadCachedMethodCall(self, key):
 		"""Loads a named object from EVE's CachedMethodCalls folder."""
-		return _loadobject(self, key, True, "CachedMethodCalls")
+		return self._loadobject(key, True, "CachedMethodCalls")
 
 	def LoadCachedObject(self, key):
 		"""Loads a named object from EVE's CachedObjects folder."""
-		return _loadobject(self, key, True, "CachedObjects")
+		return self._loadobject(key, True, "CachedObjects")
 
 	def LoadObject(self, key):
 		"""Load named object from cache, or None if it is not available."""
-		return _loadobject(self, key, False, "CachedObjects")
+		return self._loadobject(key, False, "CachedObjects")
 
 
 	def LoadBulk(self, bulkID):

@@ -833,7 +833,7 @@ class Config(object):
 		# Only tables that are available for this instance's particular
 		# machoNet version will be in this set, and are the only tables loaded
 		# when prime() is called.
-		self._tables = dict(((k, v) for k, v in self.__tables__ if protocol >= v[0] and protocol < v[1] or 2147483647))
+		self._tables = dict(((k, v) for k, v in self.__tables__ if protocol >= v[0] and protocol < (v[1] or 2147483647)))
 		self.tables = frozenset(( \
 			attrName for attrName in dir(self.__class__) \
 			if attrName[0] != "_" \
@@ -856,6 +856,7 @@ class Config(object):
 			except AttributeError:
 				pass
 
+		self.cache._time_load = 0.0
 		self._attrCache = {}
 
 
@@ -972,7 +973,7 @@ which will be called as func(current, total, tableName).
 
 		if debug:
 			t = time.clock() - start
-			print >>sys.stderr, "Priming took %ss (of which %ss decoding)" % (t, self.cache._time_load)
+			print >>sys.stderr, "Priming took %ss (of which %.4f decoding)" % (t, self.cache._time_load)
 
 
 	def GetTypeVolume(self, typeID, singleton=1, qty=1):

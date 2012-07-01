@@ -22,6 +22,9 @@ from . import _blue as blue  # can't simply import blue (circular import). only 
 
 __all__ = ["GetCacheFileName", "CacheMgr"]
 
+_join = os.path.join
+_exists = os.path.exists
+
 
 def GetCacheFileName(key, machoVersion=99999):
 	"""Returns filename for specified object name."""
@@ -57,17 +60,17 @@ def _findcachepath(root, servername, wineprefix):
 		result = windll.shell32.SHGetFolderPathW(0, CSIDL_LOCAL_APPDATA, 0, 0, path_buf)
 		if result:
 			raise RuntimeError("SHGetFolderPath failed, error code 0x%08x" % result)
-		cachepath = os.path.join(path_buf.value, "CCP", "EVE", cacheFolderName, "cache")
+		cachepath = _join(path_buf.value, "CCP", "EVE", cacheFolderName, "cache")
 
 	elif sys.platform == "darwin" or os.name == "mac":
 		# slightly less untested. might still be wrong.
 		home = os.path.expanduser('~')
 		cacheFolderName = "c_program_files_ccp_eve_" + servername.lower()
-		cachepath = os.path.join(home, "Library/Application Support/EVE Online/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
-		if not os.path.exists(cachepath):
-			cachepath = os.path.join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
-		actualroot = os.path.join(root, "Contents/Resources/transgaming/c_drive/Program Files/CCP/EVE")
-		if os.path.exists(actualroot):
+		cachepath = _join(home, "Library/Application Support/EVE Online/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
+		if not _exists(cachepath):
+			cachepath = _join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
+		actualroot = _join(root, "Contents/Resources/transgaming/c_drive/Program Files/CCP/EVE")
+		if _exists(actualroot):
 			root = actualroot
 
 	elif os.name == "posix":
@@ -82,7 +85,7 @@ def _findcachepath(root, servername, wineprefix):
 		user = pwd.getpwuid(stat_info.st_uid).pw_name
 
 		# get the filesystem root for WINE
-		x = root.find(os.path.join(wineprefix, "drive_"))
+		x = root.find(_join(wineprefix, "drive_"))
 		if x == -1:
 			return (None, None)
 
@@ -98,14 +101,14 @@ def _findcachepath(root, servername, wineprefix):
 		# depend on the locale of the Windows version used, so we
 		# cheat past that with a glob match.
 		for settingsroot in [
-			os.path.join(wineroot, "drive_c/users", user),
-			os.path.join(wineroot, "drive_c/windows/profile", user),
-			os.path.join(wineroot, "drive_c/windows/profiles", user),
+			_join(wineroot, "drive_c/users", user),
+			_join(wineroot, "drive_c/windows/profile", user),
+			_join(wineroot, "drive_c/windows/profiles", user),
 		]:
-			if not os.path.exists(settingsroot):
+			if not _exists(settingsroot):
 				continue
 
-			for cachepath in glob.iglob(os.path.join(settingsroot, "*/*/CCP/EVE/" + cacheFolderName, "cache")):
+			for cachepath in glob.iglob(_join(settingsroot, "*/*/CCP/EVE/" + cacheFolderName, "cache")):
 				# this should only ever give one folder.
 				break
 			else:
@@ -167,7 +170,7 @@ class CacheMgr:
 			# auto-discovery of cachepath. try a few places...
 			guess = True
 			candidates = [
-				(root, os.path.join(root, "cache")),
+				(root, _join(root, "cache")),
 				_findcachepath(root, servername, wineprefix),
 			]
 		else:
@@ -184,18 +187,18 @@ class CacheMgr:
 			if root is None:
 				continue
 
-			if not os.path.exists(cachepath):
+			if not _exists(cachepath):
 				cachenotfound = True
 				continue
 
-			machopath = os.path.join(cachepath, "MachoNet", serverip)
-			bulkcpath = os.path.join(cachepath, "bulkdata")
+			machopath = _join(cachepath, "MachoNet", serverip)
+			bulkcpath = _join(cachepath, "bulkdata")
 
 			if machoversion > -1:
 				# machoversion was specified, so look for just that.
-				machocachepath = os.path.join(machopath, str(machoversion))
-				bulkdatapath = os.path.join(bulkcpath, str(machoversion))
-				if os.path.exists(machocachepath) or os.path.exists(bulkdatapath):
+				machocachepath = _join(machopath, str(machoversion))
+				bulkdatapath = _join(bulkcpath, str(machoversion))
+				if _exists(machocachepath) or _exists(bulkdatapath):
 					protocol = machoversion
 				else:
 					machonotfound = True
@@ -206,7 +209,7 @@ class CacheMgr:
 
 				# look in cache/MachoNet as well as cache/bulkdata
 				for scandir in (machopath, bulkcpath):
-					for dirName in glob.glob(os.path.join(scandir, "*")):
+					for dirName in glob.glob(_join(scandir, "*")):
 						candidate = os.path.basename(dirName)
 						if candidate.isdigit():
 							protocol = max(protocol, int(candidate))
@@ -216,12 +219,11 @@ class CacheMgr:
 
 			if protocol > self.machoVersion:
 				self.root = root
-				self.bulkdatapath = os.path.join(root, "bulkdata")
 				self.cachepath = cachepath
 				self.machoVersion = protocol
-				self.machocachepath = os.path.join(machopath, str(protocol))
-				self.BULK_SYSTEM_PATH = os.path.join(root, 'bulkdata')
-				self.BULK_CACHE_PATH = os.path.join(cachepath, 'bulkdata', str(protocol))
+				self.machocachepath = _join(machopath, str(protocol))
+				self.BULK_SYSTEM_PATH = _join(root, 'bulkdata')
+				self.BULK_CACHE_PATH = _join(cachepath, 'bulkdata', str(protocol))
 				return
 
 		if self.machoVersion == -1:
@@ -238,110 +240,80 @@ class CacheMgr:
 					raise RuntimeError("Specified cache folder does not exist: '%s'" % cachepath)
 
 
+	def GetCacheFileName(self, key):
+		"""Returns the filename for specified object name."""
+		return GetCacheFileName(key, self.machoVersion)
+
+
 	def LoadCacheFolder(self, name, filter="*.cache"):
 		"""Loads all .cache files from specified folder. Returns a dict keyed on object name."""
 
 		# Note that this method was intended mainly for debugging and testing.
 		crap = {}
-		if self.machoVersion > 181 and name.lower() == "bulkdata":
-			name = self.bulkdatapath
-		else:
-			name = os.path.join(self.machocachepath, name)
-		for filename in glob.glob(os.path.join(name, filter)):
+		if name.lower() == "bulkdata":
+			name = self.BULK_SYSTEM_PATH
+
+		for filename in glob.glob(_join(name, filter)):
 			try:
 				what, obj = blue.marshal.Load(_readfile(filename))
 				crap[what] = obj
-			except RuntimeError:  # todo: make proper UnmarshalError exception class
+			except UnmarshalError:
 				# ignore files that cannot be decoded.
 				pass
 
 		return crap
 
 
-	def LoadCachedMethodCall(self, key):
-		"""Loads a named object from EVE's CachedMethodCalls folder."""
-		name = os.path.join(self.machocachepath, "CachedMethodCalls", self.GetCacheFileName(key))
+	def _loadobject(self, key, canraise=False, folder=None):
+		name = _join(self.machocachepath, folder, self.GetCacheFileName(key))
+		if not canraise:
+			if not _exists(name):
+				return None
+
 		what, obj = blue.marshal.Load(_readfile(name))
 		if what != key:
 			# Oops. We did not get what we asked for...
-			raise RuntimeError("Hash collision: Wanted '%s' but got '%s'" % (key, what))
+			if canraise:
+				raise RuntimeError("Hash collision: Wanted '%s' but got '%s'" % (key, what))
+			return None
+
 		return obj
 
+
+	def LoadCachedMethodCall(self, key):
+		"""Loads a named object from EVE's CachedMethodCalls folder."""
+		return _loadobject(self, key, True, "CachedMethodCalls")
 
 	def LoadCachedObject(self, key):
 		"""Loads a named object from EVE's CachedObjects folder."""
-		fileName = self.GetCacheFileName(key)
-		name = os.path.join(self.machocachepath, "CachedObjects", fileName)
-		what, obj = blue.marshal.Load(_readfile(name))
-		if what != key:
-			# Oops. We did not get what we asked for...
-			raise RuntimeError("Hash collision: Wanted '%s' but got '%s'" % (key, what))
-		return obj
+		return _loadobject(self, key, True, "CachedObjects")
+
+	def LoadObject(self, key):
+		"""Load named object from cache, or None if it is not available."""
+		return _loadobject(self, key, False, "CachedObjects")
 
 
 	def LoadBulk(self, bulkID):
 		"""Loads bulkdata for the specified bulkID"""
-		# This is a protocol 276+ feature.
-		for folder in [self.BULK_CACHE_PATH, self.BULK_SYSTEM_PATH]:
-			cacheName = os.path.join(folder, str(bulkID)+".cache2")
-			if os.path.exists(cacheName):
-				# No version check required with CCP's new system.
-				return blue.marshal.Load(_readfile(cacheName))
-
-
-	def LoadObject(self, key):
-		"""Load named object from cache or builkdata, whichever is the higher version."""
-
-		fileName = self.GetCacheFileName(key)
-
-		src = None
-		what = None
-
-		obj = None
-		version = (0L, 0)
-
-		# Check both cache locations and pick whichever has the higher version
-
-		for cacheName in [
-			os.path.join(self.machocachepath, "CachedObjects", fileName),
-			os.path.join(self.bulkdatapath, fileName),
-		]:
-			if os.path.exists(cacheName):
-				blurb = _readfile(cacheName)
+		for folder in (self.BULK_CACHE_PATH, self.BULK_SYSTEM_PATH):
+			cacheName = _join(folder, str(bulkID)+".cache2")
+			if _exists(cacheName):
+				# No version check required.
 				_t = time.clock()
-				what, obj2 = blue.marshal.Load(blurb)
+				obj = blue.marshal.Load(_readfile(cacheName))
 				self._time_load += (time.clock() - _t)
-
-			if what == key:
-				if obj2.version > version:
-					obj = obj2
-					version = obj.version
-
-		if obj is None:
-			raise RuntimeError("cache file not found: %s" % fileName)
-
-		obj = obj.GetCachedObject()
-		return obj
-
-
-	def GetCacheFileName(self, key):
-		"""Returns the filename for specified object name."""
-		return GetCacheFileName(key, self.machoVersion)
+				return obj
 
 
 	def FindCacheFile(self, key):
-		"""Attempts to locate a cache file in any of the cache locations.
-
-		Note: does no version/content check, so do not use for bulkdata.
-		"""
+		"""Attempts to locate a cache file in any of the cache locations."""
 		fileName = self.GetCacheFileName(key)
 		for cacheName in [
-			os.path.join(self.machocachepath, "CachedObjects", fileName),
-			os.path.join(self.bulkdatapath, fileName),
-			os.path.join(self.machocachepath, "CachedMethodCalls", fileName),
-			os.path.join(self.machocachepath, "MethodCallCachingDetails", fileName),
+			_join(self.machocachepath, "CachedObjects", fileName),
+			_join(self.machocachepath, "CachedMethodCalls", fileName),
+			_join(self.machocachepath, "MethodCallCachingDetails", fileName),
 		]:
-			if os.path.exists(cacheName):
+			if _exists(cacheName):
 				return cacheName
 		return None
 
@@ -352,12 +324,11 @@ class CacheMgr:
 		obj = (key, None)
 		version = (0L, 0)
 		for cacheName in [
-			os.path.join(self.machocachepath, "CachedObjects", fileName),
-			os.path.join(self.bulkdatapath, fileName),
-			os.path.join(self.machocachepath, "CachedMethodCalls", fileName),
-			os.path.join(self.machocachepath, "MethodCallCachingDetails", fileName),
+			_join(self.machocachepath, "CachedObjects", fileName),
+			_join(self.machocachepath, "CachedMethodCalls", fileName),
+			_join(self.machocachepath, "MethodCallCachingDetails", fileName),
 		]:
-			if os.path.exists(cacheName):
+			if _exists(cacheName):
 				blurb = _readfile(cacheName)
 				_t = time.clock()
 				what, obj2 = blue.marshal.Load(blurb)
@@ -373,9 +344,9 @@ class CacheMgr:
 
 	def findbulk(self, bulkID):
 		"""Locates bulkdata file by ID."""
-		for folder in [self.BULK_CACHE_PATH, self.BULK_SYSTEM_PATH]:
-			cacheName = os.path.join(folder, str(bulkID)+".cache2")
-			if os.path.exists(cacheName):
+		for folder in (self.BULK_CACHE_PATH, self.BULK_SYSTEM_PATH):
+			cacheName = _join(folder, str(bulkID)+".cache2")
+			if _exists(cacheName):
 				return cacheName
 
 

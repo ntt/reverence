@@ -1,5 +1,13 @@
-#
-# File Static Data stuff.
+"""
+FileStaticData loader stuff
+
+This code is free software; you can redistribute it and/or modify
+it under the terms of the BSD license (see the file LICENSE.txt
+included with the distribution).
+
+Part of this code is inspired by or based on EVE Online.
+Used with permission from CCP.
+"""
 #
 # So apparently CCP added yet another static data format, using YAML for the
 # schema and binary blobs for data. CCP's uses ctypes, which I don't really
@@ -9,7 +17,6 @@
 #
 # Also, this stuff should totally be implemented in C.
 #
-
 
 import ctypes
 import struct

@@ -1,6 +1,6 @@
 """Interface to cache and bulkdata. Primarily used by ConfigMgr.
 
-Copyright (c) 2003-2011 Jamie "Entity" van den Berge <jamie@hlekkir.com>
+Copyright (c) 2003-2012 Jamie "Entity" van den Berge <jamie@hlekkir.com>
 
 This code is free software; you can redistribute it and/or modify
 it under the terms of the BSD license (see the file LICENSE.txt

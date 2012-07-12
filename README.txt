@@ -34,6 +34,7 @@ REQUIREMENTS
 - Windows (XP or later) or Linux. (untested on Mac)
 - x86/x64 compatible processor.
 - Python 2.7 or 2.6.
+- PyYAML package
 - An EVE Online installation.
 
 Notes:

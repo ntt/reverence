@@ -1,9 +1,16 @@
 """
 Minimal Cerberus (localization subsystem) implementation.
 
-Note: If I had to write about all the stuff that is wrong with the Cerberus
-code in the EVE client, this script file would probably be twice as big.
+This code is free software; you can redistribute it and/or modify
+it under the terms of the BSD license (see the file LICENSE.txt
+included with the distribution).
+
+Part of this code is inspired by or based on EVE Online.
+Used with permission from CCP.
 """
+
+# Note: If I had to write about all the stuff that is wrong with the Cerberus
+# code in the EVE client, this script file would probably be twice as big.
 
 import os
 import cPickle

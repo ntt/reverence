@@ -154,6 +154,7 @@ virtualfile_read(PyVirtualFileObject *self, PyObject *args)
 		if(!t)                                                               \
 			goto fail;                                                       \
 		self->vf_remaining = self->vf_end-PyLong_AsLong(t);                  \
+		Py_DECREF(t);                                                        \
 		if(self->vf_remaining < 0)                                           \
 			self->vf_remaining = 0;                                          \
 	}                                                                        \
@@ -284,6 +285,7 @@ virtualfile_tell(PyVirtualFileObject *self)
 	if(!t)
 		return NULL;
 	pos = PyLong_AsLong(t);
+	Py_DECREF(t);
 	self->vf_remaining = self->vf_end - pos;
 	return PyLong_FromLong(pos - self->vf_start);
 }
@@ -307,6 +309,7 @@ virtualfile_seek(PyVirtualFileObject *self, PyObject *args)
 		if(!t)
 			return NULL;
 		pos += PyLong_AsLong(t);
+		Py_DECREF(t);
 	}
 	else
 		pos += self->vf_start;

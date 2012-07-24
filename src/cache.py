@@ -47,20 +47,28 @@ def _readfile(filename):
 		return f.read()
 
 
+_localappdata = None
+
 def _findcachepath(root, servername, wineprefix):
 	# returns (root, cachepath) tuple where eve stuff may be found.
+	global _localappdata
 
 	if os.name == "nt":
 		cacheFolderName = root.lower().replace(":", "").replace("\\", "_").replace(" ", "_")
 		cacheFolderName += "_"+servername.lower()
 
-		from ctypes import wintypes, windll, c_int
-		CSIDL_LOCAL_APPDATA = 28
-		path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
-		result = windll.shell32.SHGetFolderPathW(0, CSIDL_LOCAL_APPDATA, 0, 0, path_buf)
-		if result:
-			raise RuntimeError("SHGetFolderPath failed, error code 0x%08x" % result)
-		cachepath = _join(path_buf.value, "CCP", "EVE", cacheFolderName, "cache")
+		if _localappdata is None:
+			from ctypes import wintypes, windll, c_int
+			CSIDL_LOCAL_APPDATA = 28
+			path_buf = wintypes.create_unicode_buffer(wintypes.MAX_PATH)
+			result = windll.shell32.SHGetFolderPathW(0, CSIDL_LOCAL_APPDATA, 0, 0, path_buf)
+			if result:
+				if result < 0:
+					result += 0x100000000
+				raise RuntimeError("SHGetFolderPath failed, error code 0x%08x" % result)
+			_localappdata = path_buf.value
+
+		cachepath = _join(_localappdata, "CCP", "EVE", cacheFolderName, "cache")
 
 	elif sys.platform == "darwin" or os.name == "mac":
 		# slightly less untested. might still be wrong.

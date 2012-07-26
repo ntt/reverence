@@ -517,8 +517,8 @@ class Config(object):
 
 #		( cfg attrib                  , (ver, del, storage class       , row class         , primary key           bulkID)),
 #		("evegraphics"                , (  0, 327, util.IndexRowset    , util.Row          , "graphicID"         , const.cacheResGraphics)),
-		("icons"                      , (242,   0, util.IndexRowset    , util.Row          , 'iconID'            , const.cacheResIcons)),
-		("sounds"                     , (242,   0, util.IndexRowset    , util.Row          , 'soundID'           , const.cacheResSounds)),
+		("icons"                      , (242, 332, util.IndexRowset    , util.Row          , 'iconID'            , const.cacheResIcons)),
+		("sounds"                     , (242, 332, util.IndexRowset    , util.Row          , 'soundID'           , const.cacheResSounds)),
 
 		("invcategories"              , (  0,   0, util.IndexRowset    , InvCategory       , "categoryID"        , const.cacheInvCategories)),
 		("invgroups"                  , (  0,   0, util.IndexRowset    , InvGroup          , "groupID"           , const.cacheInvGroups)),
@@ -587,9 +587,11 @@ class Config(object):
 		("schematicsByPin"            , (242,   0)),
 
 		# new FSD stuff --------------- (ver, del, resource name in stuff, cache size)
-		("graphics"                   , (327,   0, "graphicIDs"          , 100)),
 		("fsdTypeOverrides"           , (327,   0, "typeIDs"             , None)),
 		("fsdPlanetAttributes"        , (327,   0, "planetAttributes"    , 100)),
+		("graphics"                   , (327,   0, "graphicIDs"          , 100)),
+		("sounds"                     , (332,   0, "soundIDs"            , 100)),
+		("icons"                      , (332,   0, "iconIDs"             , 100)),
 	)
 
 

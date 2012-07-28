@@ -452,7 +452,7 @@ class DictLoader(object):
 		self.data = data
 		self.offset = offset
 		self.schema = schema
-		self.offsetToData = _uint32(data, offset)
+		self.offsetToData = _uint32(data, offset)[0]
 		self.__extraState__ = extraState
 		self.index = {}
 		ListFromBinaryString = self.__extraState__.factories['list']

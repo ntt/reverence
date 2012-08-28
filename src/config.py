@@ -516,7 +516,6 @@ class Config(object):
 	__tables__ = (
 
 #		( cfg attrib                  , (ver, del, storage class       , row class         , primary key           bulkID)),
-#		("evegraphics"                , (  0, 327, util.IndexRowset    , util.Row          , "graphicID"         , const.cacheResGraphics)),
 		("icons"                      , (242, 332, util.IndexRowset    , util.Row          , 'iconID'            , const.cacheResIcons)),
 		("sounds"                     , (242, 332, util.IndexRowset    , util.Row          , 'soundID'           , const.cacheResSounds)),
 
@@ -548,10 +547,6 @@ class Config(object):
 		("schematics"                 , (242,   0, util.IndexRowset    , Schematic         , 'schematicID'       , const.cachePlanetSchematics)),
 		("ramtyperequirements"        , (242,   0, dict                , None          , ('typeID', 'activityID'), const.cacheRamTypeRequirements)),
 		("invtypematerials"           , (254,   0, dict                , None              , 'typeID'            , const.cacheInvTypeMaterials)),
-
-
-#		("planetattributes"           , (242,   0, None                , None              , None)),  # N/A
-
 
 		# location/owner stuff.
 		("factions"                   , (276,   0, util.IndexRowset    , util.Row          , "factionID"         , const.cacheChrFactions)),
@@ -587,9 +582,9 @@ class Config(object):
 		("schematicsByPin"            , (242,   0)),
 
 		# new FSD stuff --------------- (ver, del, resource name in stuff, cache size)
-		("fsdTypeOverrides"           , (327,   0, "typeIDs"             , None)),
-		("fsdPlanetAttributes"        , (327,   0, "planetAttributes"    , 100)),
-		("graphics"                   , (327,   0, "graphicIDs"          , 100)),
+		("fsdTypeOverrides"           , (324,   0, "typeIDs"             , None)),
+		("fsdPlanetAttributes"        , (324,   0, "planetAttributes"    , 100)),
+		("graphics"                   , (324,   0, "graphicIDs"          , 100)),
 		("sounds"                     , (332,   0, "soundIDs"            , 100)),
 		("icons"                      , (332,   0, "iconIDs"             , 100)),
 	)

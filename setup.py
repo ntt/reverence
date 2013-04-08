@@ -1,7 +1,6 @@
 # setup.py
-import distutils
-from distutils.core import setup
-from distutils.core import Extension
+from setuptools import setup
+from setuptools import Extension
 
 import platform
 import sys
@@ -14,6 +13,8 @@ except OSError:
 
 if sys.version_info < (2, 6) or sys.version_info > (2, 8):
 	raise RuntimeError("Python 2.6 or 2.7 required")
+
+requirements = ['PyYAML']
 
 desc = """\
 Reverence is a decoder for, and interface to the bulkdata, cache and
@@ -29,6 +30,8 @@ setup(
 	url = "http://github.com/ntt/reverence",
 
 	version = "1.5.0",
+
+	install_requires=requirements,
 
 	description = "Interface to EVE Online resources",
 

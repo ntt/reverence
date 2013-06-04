@@ -12,7 +12,7 @@ import sys
 from time import sleep as _sleep
 
 from ._blue import marshal, DBRow, DBRowDescriptor
-from . import exceptions, cache, _os as os, _blue
+from . import exceptions, cache, _os as os, _blue, pyFSD
 
 __all__ = ["EVE", "marshal", "os", "pyos", "DBRow", "DBRowDescriptor"]
 
@@ -27,12 +27,26 @@ marshal.UnmarshalError.__module__ = None
 # and because the exception class is accessible like this in EVE ...
 exceptions.UnmarshalError = exceptions.SQLError = __builtin__.UnmarshalError = marshal.UnmarshalError
 
+class boot:
+	role = "client"
 
 class pyos:
 	class synchro:
 		@staticmethod
 		def Sleep(msec):
 			_sleep(msec / 1000.0)
+
+
+class statistics(object):
+	# dummy for compatibility with CCP libs
+
+	@staticmethod
+	def EnterZone(*args):
+		pass
+
+	@staticmethod
+	def LeaveZone():
+		pass
 
 
 class _ResFile(object):
@@ -203,4 +217,12 @@ _blue.dbrow_str = dbrow_str
 marshal._set_find_global_func(_find_global)
 marshal._set_debug_func(_debug)
 _readstringstable()
+
+# hack to make CCP zip libs accept our not-exactly-the-same environment
+sys.modules["blue"] = sys.modules["reverence.blue"]
+
+# and this one to make CCP's FSD loader import pyFSD succesfully
+sys.modules["pyFSD"] = pyFSD
+
+__builtin__.boot = boot
 

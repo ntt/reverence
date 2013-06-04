@@ -360,73 +360,6 @@ def FloatFromBinaryString(data, offset, schema, extraState):
 	return _float(data, offset)[0]
 
 
-
-class FixedSizeListRepresentation(object):
-
-	def __init__(self, data, offset, itemSchema, knownLength = None):
-		self.data = data
-		self.offset = offset
-		self.itemSchema = itemSchema
-		if knownLength is None:
-			self.count = _uint32(data, offset)
-			self.fixedLength = False
-		else:
-			self.count = knownLength
-			self.fixedLength = True
-		self.itemSize = itemSchema['size']
-
-	def __iter__(self):
-		offset = self.offset if self.fixedLength else (self.offset+4)
-		return (RepresentSchemaNode(self.data, itemOffset, self.itemSchema) for itemOffset in xrange(offset, offset + self.count * self.itemSize, self.itemSize))
-
-	def __len__(self):
-		return self.count
-
-	def __getitem__(self, key):
-		if type(key) not in (int, long):
-			raise TypeError('Invalid key type')
-		if key < 0 or key >= self.count:
-			raise IndexError('Invalid item index %i for list of length %i' % (key, self.count))
-		offset = self.offset if self.fixedLength else (self.offset+4)
-		return RepresentSchemaNode(self.data, offset + self.itemSize * key, self.itemSchema)
-
-
-class VariableSizedListRepresentation(object):
-
-	def __init__(self, data, offset, itemSchema, knownLength = None):
-		self.data = data
-		self.offset = offset
-		self.itemSchema = itemSchema
-		if knownLength is None:
-			self.count = _uint32(data, offset)
-			self.fixedLength = False
-		else:
-			self.count = knownLength
-			self.fixedLength = True
-
-	def __len__(self):
-		return self.count
-
-	def __getitem__(self, key):
-		if type(key) not in (int, long):
-			raise TypeError('Invalid key type')
-		if key < 0 or key >= self.count:
-			raise IndexError('Invalid item index %i for list of length %i' % (key, self.count))
-		offset = (self.offset if self.fixedLength else (self.offset+4)) + 4*key
-		return RepresentSchemaNode(self.data, self.offset + _uint32(data, offset)[0], self.itemSchema)
-
-
-def ListFromBinaryString(data, offset, schema, knownLength = None):
-	knownLength = schema.get('length', knownLength)
-	if 'fixedItemSize' in schema:
-		return FixedSizeListRepresentation(data, offset, schema['itemTypes'], knownLength)
-	else:
-		return VariableSizedListRepresentation(data, offset, schema['itemTypes'], knownLength)
-
-		
-
-
-
 ########################
 # dictLoader
 
@@ -456,6 +389,7 @@ class DictLoader(object):
 		self.__extraState__ = extraState
 		self.index = {}
 		ListFromBinaryString = self.__extraState__.factories['list']
+
 		self.headerData = ListFromBinaryString(data, offset + 4, self.schema['keyHeader'], self.__extraState__)
 
 	def __getitem__(self, key):

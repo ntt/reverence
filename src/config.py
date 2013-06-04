@@ -17,6 +17,8 @@ import sys
 import os
 import time
 import sqlite3
+import glob
+import logging
 
 from . import _blue as blue
 from . import const, util, dbutil
@@ -371,8 +373,23 @@ def _loader(attrName):
 
 		if len(entry) == 4:
 			# FSD loader
-			ver, rem, resFileName, cacheNum = entry
-			return self._loadfsddata(attrName, resFileName, cacheNum)
+			ver, rem, (staticName, schemaName, optimize), cacheNum = entry
+			if self.useCCPlibs:
+				# odyssey fsd loader (uses CCP code directly)
+				from . import blue as bloo
+				_rf = bloo.ResFile
+				try:
+					bloo.ResFile = self._eve.ResFile
+					if optimize is None:
+						optimize = True
+					staticName = 'res:/staticdata/%s.static' % staticName
+					schemaName = 'res:/staticdata/%s.schema' % schemaName if schemaName else None
+					return self._fsdBinaryLoader.LoadFSDDataForCFG(staticName, schemaName, optimize=optimize)
+				finally:
+					bloo.ResFile = _rf
+			else:
+				# pre-odyssey loader
+				return self._loadfsddata(attrName, staticName, cacheNum)
 
 	method.func_name = attrName
 	return method
@@ -581,12 +598,14 @@ class Config(object):
 		("schematicspinmap"           , (242,   0)),
 		("schematicsByPin"            , (242,   0)),
 
-		# new FSD stuff --------------- (ver, del, resource name in stuff, cache size)
-		("fsdTypeOverrides"           , (324,   0, "typeIDs"             , None)),
-		("fsdPlanetAttributes"        , (324,   0, "planetAttributes"    , 100)),
-		("graphics"                   , (324,   0, "graphicIDs"          , 100)),
-		("sounds"                     , (332,   0, "soundIDs"            , 100)),
-		("icons"                      , (332,   0, "iconIDs"             , 100)),
+		# new FSD stuff --------------- (ver, del,  static name       , schema name       , optimize   cache size)
+		("fsdTypeOverrides"           , (324,   0, ("typeIDs"         , "typeIDs"         , False)   , None)),
+		("fsdPlanetAttributes"        , (324,   0, ("planetAttributes", "planetAttributes", False)   , 100 )),
+#		("fsdDustIcons"               , (XXX,   0, ("dustIcons"       , None              , None )   , None)),  # FIXME (@ Odyssey release?)
+		("graphics"                   , (324,   0, ("graphicIDs"      , "graphicIDs"      , None )   , 100 )),
+		("sounds"                     , (332,   0, ("soundIDs"        , "soundIDs"        , None )   , 100 )),
+		("icons"                      , (332,   0, ("iconIDs"         , "iconIDs"         , None )   , 100 )),
+
 	)
 
 
@@ -834,6 +853,7 @@ class Config(object):
 		self.tables = frozenset(( \
 			attrName for attrName in dir(self.__class__) \
 			if attrName[0] != "_" \
+			and attrName in self._tables \
 			and isinstance(getattr(self.__class__, attrName), _memoize) \
 			and protocol >= self._tables[attrName][0] \
 			and protocol < (self._tables[attrName][1] or 2147483647) \
@@ -842,6 +862,32 @@ class Config(object):
 
 		self.localdb = sqlite3.connect(os.path.join(self.cache.BULK_SYSTEM_PATH, "mapbulk.db"))
 		self.localdb.row_factory = sqlite3.Row
+
+
+		# look for fsd library in EVE install
+		for fsdlib in glob.glob(os.path.join(self.cache.root, "lib", "fsdSchemas-*.zip")):
+			# add zip library to module search path
+			sys.path.append(fsdlib)
+
+			# needed to make logger work, and shut it up
+			logging.basicConfig()
+			self._logger = logging.getLogger("fsdSchemas")
+			self._logger.setLevel(-1)
+
+			# import the important function!
+			import fsdSchemas.binaryLoader as fsdBinaryLoader
+			self._fsdBinaryLoader = fsdBinaryLoader
+
+			# All set to use EVE's FSD code directly.
+			# Yep, now we're basically gambling on that code to be compatible
+			# with whatever other EVE installs are accessed with this process.
+			# (This is obviously only an issue if you are using this process
+			# to access multiple EVE installs)
+
+			self.useCCPlibs = True
+			break
+		else:
+			self.useCCPlibs = False
 
 
 	def release(self):
@@ -858,7 +904,7 @@ class Config(object):
 
 
 	def _loadfsddata(self, tableName, resName, cacheNum):
-		# FileStaticData loader.
+		# pre-Odyssey FileStaticData loader.
 		# Grabs schema and binary blob from .stuff file.
 		res = self._eve.ResFile()
 		resFileName = "res:/staticdata/%s.schema" % resName
@@ -1039,7 +1085,7 @@ which will be called as func(current, total, tableName).
 
 
 	@staticmethod
-	def _GetCelestialNameDataFromLocalRow(self, row):
+	def _GetCelestialNameDataFromLocalRow(row):
 		celestialGroupID = row['groupID']
 		celestialNameID = row['celestialNameID']
 

@@ -24,7 +24,9 @@ extern unsigned long adler32(unsigned long adler, const char *buf, unsigned int 
 static PyObject *constants[256] = {NULL};
 static int needlength[256] = {0};
 
-static char *tokenname[256] = {"???"};
+#if MARSHAL_DEBUG
+static char *tokenname[256];
+#endif
 
 
 // module level objects
@@ -198,7 +200,7 @@ find_global(PyObject *pyname)
 {
 	// Return value: New Reference
 	char *name, *dot;
-	PyObject *m;
+	PyObject *m = NULL;
 	PyObject *obj;
 
 	char buffer[64];

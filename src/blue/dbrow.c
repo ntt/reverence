@@ -981,7 +981,7 @@ static PyObject *
 dbrow_str(PyDBRowObject *self)
 {
 	PyObject *result = NULL, *str;
-	if(str = PyObject_GetAttr((PyObject *)blue, py_dbrow_str))
+	if((str = PyObject_GetAttr((PyObject *)blue, py_dbrow_str)))
 	{
 		result = PyObject_CallFunction(str, "O", self);
 		Py_DECREF(str);

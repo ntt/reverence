@@ -8,4 +8,5 @@ __builtin__.DAY    = 24L*HOUR
 __all__ = [
 	"blue", "util", "config", "cache", "embedfs",
 	"dbutil", "const", "objectCaching", "exceptions", "strings",
+	"carbon", "eve",
 ]

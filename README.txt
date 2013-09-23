@@ -1,6 +1,6 @@
 Reverence - REVERse ENgineered Cache Explorer
             
-Copyright (C)2003-2012 by Jamie "Entity" van den Berge
+Copyright (C)2003-2013 by Jamie "Entity" van den Berge
 All rights reserved.
 
 Reverence is an advanced EVE Online cache/bulkdata handling toolkit for Python.

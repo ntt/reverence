@@ -28,16 +28,8 @@ _exists = os.path.exists
 
 def GetCacheFileName(key, machoVersion=99999):
 	"""Returns filename for specified object name."""
-
 	if machoVersion >= 213:
 		return "%x.cache" % binascii.crc_hqx(cPickle.dumps(key), 0)
-# Legacy stuff. Deprecated. Here for historical reasons :)
-	#elif machoVersion >= 151:
-	#	return "%x.cache" % binascii.crc_hqx((blue.marshal.Save(key, machoVersion=machoVersion)), 0)
-	#elif machoVersion >= 136:
-	#	return blue.marshal.Save(key).encode("base64").replace('=', '').replace('/', '-').replace('\n', '') + ".cache"
-	#else:
-	#	return blue.marshal.Save(key).encode("hex") + ".cache"
 	else:
 		raise RuntimeError("machoNet version 213 or higher required")
 
@@ -49,8 +41,8 @@ def _readfile(filename):
 
 _localappdata = None
 
-def _findcachepath(root, servername, wineprefix):
-	# returns (root, cachepath) tuple where eve stuff may be found.
+def _find_appdata_path(root, servername, wineprefix):
+	# returns (root, appdatapath) tuple where eve stuff may be found.
 	global _localappdata
 
 	if os.name == "nt":
@@ -68,15 +60,15 @@ def _findcachepath(root, servername, wineprefix):
 				raise RuntimeError("SHGetFolderPath failed, error code 0x%08x" % result)
 			_localappdata = path_buf.value
 
-		cachepath = _join(_localappdata, "CCP", "EVE", cacheFolderName, "cache")
+		appdatapath = _join(_localappdata, "CCP", "EVE", cacheFolderName)
 
 	elif sys.platform == "darwin" or os.name == "mac":
 		# slightly less untested. might still be wrong.
 		home = os.path.expanduser('~')
 		cacheFolderName = "c_program_files_ccp_eve_" + servername.lower()
-		cachepath = _join(home, "Library/Application Support/EVE Online/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
-		if not _exists(cachepath):
-			cachepath = _join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName, "cache")
+		appdatapath = _join(home, "Library/Application Support/EVE Online/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName)
+		if not _exists(appdatapath):
+			appdatapath = _join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data/CCP/EVE", cacheFolderName)
 		actualroot = _join(root, "Contents/Resources/transgaming/c_drive/Program Files/CCP/EVE")
 		if _exists(actualroot):
 			root = actualroot
@@ -108,15 +100,15 @@ def _findcachepath(root, servername, wineprefix):
 		# locate that cache folder. the names of the folders here
 		# depend on the locale of the Windows version used, so we
 		# cheat past that with a glob match.
-		for settingsroot in [
+		for appdataroot in [
 			_join(wineroot, "drive_c/users", user),
 			_join(wineroot, "drive_c/windows/profile", user),
 			_join(wineroot, "drive_c/windows/profiles", user),
 		]:
-			if not _exists(settingsroot):
+			if not _exists(appdataroot):
 				continue
 
-			for cachepath in glob.iglob(_join(settingsroot, "*/*/CCP/EVE/" + cacheFolderName, "cache")):
+			for appdatapath in glob.iglob(_join(appdataroot, "*/*/CCP/EVE/" + cacheFolderName)):
 				# this should only ever give one folder.
 				break
 			else:
@@ -130,14 +122,14 @@ def _findcachepath(root, servername, wineprefix):
 	else:
 		return (None, None)
 
-	return (root, cachepath)
+	return (root, appdatapath)
 
 
 
 class CacheMgr:
 	"""Interface to an EVE Installation's cache and bulkdata."""
 
-	def __init__(self, root, servername="Tranquility", machoversion=-1, cachepath=None, wineprefix=".wine"):
+	def __init__(self, root, servername="Tranquility", machoversion=-1, appdatapath=None, wineprefix=".wine"):
 		self.cfg = None
 		self._time_load = 0.0
 
@@ -176,13 +168,12 @@ class CacheMgr:
 		root = os.path.abspath(root)
 
 		candidates = []
-		guess = cachepath is None
-		if guess:
-			# auto-discovery of cachepath. try a few places...
-			guess = True
+		discover = appdatapath is None  # used further down too.
+		if discover:
+			# auto-discovery of appdata path. try a few places...
 			candidates = [
 				(root, _join(root, "cache")),
-				_findcachepath(root, servername, wineprefix),
+				_find_appdata_path(root, servername, wineprefix),
 			]
 		else:
 			# manually specified cachepath! only look there.
@@ -194,16 +185,16 @@ class CacheMgr:
 
 		cachenotfound = machonotfound = False
 
-		for root, cachepath in candidates:
+		for root, appdatapath in candidates:
 			if root is None:
 				continue
 
-			if not _exists(cachepath):
+			if not _exists(appdatapath):
 				cachenotfound = True
 				continue
 
-			machopath = _join(cachepath, "MachoNet", serverip)
-			bulkcpath = _join(cachepath, "bulkdata")
+			machopath = _join(appdatapath, "cache", "MachoNet", serverip)
+			bulkcpath = _join(appdatapath, "cache", "bulkdata")
 
 			if machoversion > -1:
 				# machoversion was specified, so look for just that.
@@ -229,12 +220,14 @@ class CacheMgr:
 					machonotfound = True
 
 			if protocol > self.machoVersion:
-				self.root = root
-				self.cachepath = cachepath
 				self.machoVersion = protocol
+				self.root = root
+				self.appdatapath = appdatapath
+				self.cachepath = _join(appdatapath, "cache")
+				self.settingspath = _join(appdatapath, "settings")
 				self.machocachepath = _join(machopath, str(protocol))
 				self.BULK_SYSTEM_PATH = _join(root, 'bulkdata')
-				self.BULK_CACHE_PATH = _join(cachepath, 'bulkdata', str(protocol))
+				self.BULK_CACHE_PATH = _join(appdatapath, 'cache', 'bulkdata', str(protocol))
 				return
 
 		if self.machoVersion == -1:
@@ -245,7 +238,7 @@ class CacheMgr:
 					raise RuntimeError("Specified protocol version (%d) not found in MachoNet cache." % machoversion)
 
 			if cachenotfound:
-				if guess:
+				if discover:
 					raise RuntimeError("Could not determine EVE cache folder location.")
 				else:
 					raise RuntimeError("Specified cache folder does not exist: '%s'" % cachepath)
@@ -259,19 +252,12 @@ class CacheMgr:
 	def LoadCacheFolder(self, name, filter="*.cache"):
 		"""Loads all .cache files from specified folder. Returns a dict keyed on object name."""
 
-		# Note that this method was intended mainly for debugging and testing.
+		# Note that this method is used mainly for debugging and testing,
+		# and is subject to change without notice.
 		crap = {}
-		if name.lower() == "bulkdata":
-			name = self.BULK_SYSTEM_PATH
-
 		for filename in glob.glob(_join(name, filter)):
-			try:
-				what, obj = blue.marshal.Load(_readfile(filename))
-				crap[what] = obj
-			except UnmarshalError:
-				# ignore files that cannot be decoded.
-				pass
-
+			what, obj = blue.marshal.Load(_readfile(filename))
+			crap[what] = obj
 		return crap
 
 

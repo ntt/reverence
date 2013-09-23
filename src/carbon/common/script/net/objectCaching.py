@@ -9,7 +9,7 @@ Parts of code inspired by or based on EVE Online, with permission from CCP.
 
 import zlib
 
-from . import blue, util
+from reverence import blue, util
 
 class CachedMethodCallResult:
 	__guid__ = "objectCaching.CachedMethodCallResult"

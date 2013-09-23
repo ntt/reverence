@@ -58,13 +58,20 @@ class _ResFile(object):
 
 	def Open(self, filename):
 		self.fh = None
-		if filename.startswith("res:"):
-			# we gotta have to open a .stuff file...
-			self.fh = self.rot.efs.open("res/" + filename[5:])
-		elif filename.startswith("cache:"):
-			self.fh = open(os.path.join(self.eve.root, "cache", filename[7:]), "rb") 
-		else:
-			self.fh = open(filename, "rb")
+		try:
+			if filename.startswith("res:"):
+				# we gotta have to open a .stuff file...
+				try:
+					self.fh = self.rot.efs.open("res/" + filename[5:])
+				except IndexError, e:
+					return None
+			elif filename.startswith("cache:"):
+				self.fh = open(os.path.join(self.eve.root, "cache", filename[7:]), "rb") 
+			else:
+				self.fh = open(filename, "rb")
+		except IOError:
+			pass
+
 		return self.fh
 
 	def Read(self, *args):
@@ -184,6 +191,7 @@ def _readstringstable():
 	#for line in strings.stringsTable:
 	#	marshal._stringtable_rev[line] = c
 	#	c+=1
+
 
 
 

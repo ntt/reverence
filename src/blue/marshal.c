@@ -1,7 +1,7 @@
 /*
 // marshal.c - high-performance iterative EVE cache/bulkdata decoder
 //
-// Copyright (c) 2003-2012 Jamie "Entity" van den Berge <jamie@hlekkir.com>
+// Copyright (c) 2003-2013 Jamie "Entity" van den Berge <jamie@hlekkir.com>
 //
 // This code is free software; you can redistribute it and/or modify
 // it under the terms of the BSD license (see the file LICENSE.txt
@@ -203,7 +203,7 @@ find_global(PyObject *pyname)
 	PyObject *m = NULL;
 	PyObject *obj;
 
-	char buffer[64];
+	char buffer[256];
 
 	if(!PyString_Check(pyname))
 	{
@@ -221,15 +221,18 @@ find_global(PyObject *pyname)
 
 	name = PyString_AS_STRING(pyname);
 
-	dot = strchr(name, '.');
+	dot = strrchr(name, '.');
 	if(dot)
 	{
 		// name is in "module.object" form
 
 		*dot = 0;  // cut off object name
 
+//		printf("TRY IMPORT %s %s\r\n", name, dot+1);
+//		fflush(stdout);
+
 		// try importing it from reverence first
-		if(strlen(name) < (64-11))
+		if(strlen(name) < (sizeof(buffer)-11))
 		{
 			// FIXME: Should really use PyImport_ImportModuleEx here,
 			// but this seems to work fine and is a lot simpler.
@@ -821,7 +824,11 @@ else
 		}
 #endif // MARSHAL_DEBUG
 
-
+/*			if(!container->obj) {
+				error = "Root container popped off stack";
+				goto fail;
+			}
+*/
 			switch(container->type) {
 				case TYPE_TUPLE:
 					// tuples steal references.
@@ -1155,6 +1162,7 @@ marshal_set_debug_func(PyObject *self, PyObject *callable)
 	Py_INCREF(Py_None);
 	return Py_None;
 }
+
 
 
 static struct PyMethodDef marshal_methods[] = {

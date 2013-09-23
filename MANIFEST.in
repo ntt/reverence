@@ -1,4 +1,5 @@
 include *.txt
-recursive-include examples *.*
-recursive-include res *.*
-recursive-include src *.*
+recursive-include examples *
+recursive-include res *
+recursive-include src *
+

@@ -13,11 +13,12 @@
 #include "dbrow.h"
 #include "marshal.h"
 #include "virtualfile.h"
+#include "fsd.h"
 
 PyMODINIT_FUNC
 init_blue(void)
 {
-	PyObject *m, *marshal;
+	PyObject *m, *marshal, *fsd;
 
 	m = Py_InitModule("_blue", NULL);
 	if (m == NULL)
@@ -32,6 +33,4 @@ init_blue(void)
 	marshal = init_marshal();
 	if(marshal)
 		PyModule_AddObject(m, "marshal", marshal);
-
 }
-

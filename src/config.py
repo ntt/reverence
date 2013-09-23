@@ -4,7 +4,7 @@
 - provides container classes for record and row data.
 - provides interface to the database tables
 
-Copyright (c) 2003-2012 Jamie "Entity" van den Berge <jamie@hlekkir.com>
+Copyright (c) 2003-2013 Jamie "Entity" van den Berge <jamie@hlekkir.com>
 
 This code is free software; you can redistribute it and/or modify
 it under the terms of the BSD license (see the file LICENSE.txt
@@ -21,9 +21,9 @@ import glob
 import logging
 
 from . import _blue as blue
-from . import const, util, dbutil
+from . import const, util
 from . import localization, fsd
-
+import reverence.carbon.common.script.sys.crowset as dbutil
 
 _get = util.Row.__getattr__
 
@@ -78,15 +78,6 @@ class Billtype(util.Row):
 class InvType(util.Row):
 	__guid__ = "sys.InvType"
 
-	def Group(self):
-		return (self.cfg or cfg).invgroups.Get(self.groupID)
-
-	def Graphic(self):
-		if self.graphicID is not None:
-			return (self.cfg or cfg).evegraphics.Get(self.graphicID)
-		else:
-			return None
-
 	def __getattr__(self, attr):
 		if attr in ("name", "typeName"):
 			return _localized_important(self, "typeName", self.typeNameID)
@@ -94,10 +85,47 @@ class InvType(util.Row):
 			return (self.cfg or cfg).invgroups.Get(self.groupID).categoryID
 		if attr == "description":
 			return _localized(self, "description", self.descriptionID)
+
+		# check overrides
+		if attr in ('graphicID', 'soundID', 'iconID', 'radius'):
+			try:
+				return getattr((self.cfg or cfg).fsdTypeOverrides.Get(self.typeID), attr)
+			except (AttributeError, KeyError):
+				pass
+
 		return _get(self, attr)
+
+	def Group(self):
+		return (self.cfg or cfg).invgroups.Get(self.groupID)
 
 	def GetRawName(self, languageID):
 		return (self.cfg or cfg)._localization.GetByMessageID(self.typeNameID, languageID)
+
+	def Icon(self):
+		if self.typeID >= const.minDustTypeID:
+			return (self.cfg or cfg).fsdDustIcons.get(self.typeID, None)
+		elif self.iconID is not None:
+			return (self.cfg or cfg).icons.GetIfExists(self.iconID)
+		return
+
+	def IconFile(self):
+		return getattr((self.cfg or cfg).icons.Get(self.iconID), "iconFile", "")
+
+	def Graphic(self):
+		gid = self.graphicID
+		if gid is not None:
+			return (self.cfg or cfg).graphics.Get(gid)
+		return None
+
+	def GraphicFile(self):
+		return getattr((self.cfg or cfg).Graphic(), "graphicFile", "")
+
+	def Sound(self):
+		sid = self.soundID
+		if sid is not None:
+			print (self.cfg or cfg).sounds.keys()
+			return (self.cfg or cfg).sounds.GetIfExists(sid)
+
 
 
 	# ---- custom additions ----
@@ -376,6 +404,7 @@ def _loader(attrName):
 			ver, rem, (staticName, schemaName, optimize), cacheNum = entry
 			if self.useCCPlibs:
 				# odyssey fsd loader (uses CCP code directly)
+				# deprecated in ody1.1, but still works if fsd lib is present
 				from . import blue as bloo
 				_rf = bloo.ResFile
 				try:
@@ -388,8 +417,8 @@ def _loader(attrName):
 				finally:
 					bloo.ResFile = _rf
 			else:
-				# pre-odyssey loader
-				return self._loadfsddata(attrName, staticName, cacheNum)
+				# use custom loader
+				return self._loadfsddata(attrName, staticName, cacheNum, optimize=optimize)
 
 	method.func_name = attrName
 	return method
@@ -427,7 +456,7 @@ class Config(object):
 		const.categoryShip,
 		const.categoryTrading,
 		const.categoryStructure,
-		)
+	)
 
 	__containergroups__ = (
 		const.groupCargoContainer,
@@ -437,8 +466,9 @@ class Config(object):
 		const.groupConstellation,
 		const.groupRegion,
 		const.groupSolarSystem,
-		const.groupMissionContainer,            
-		)
+		const.groupMissionContainer,
+		const.groupSpewContainer,
+	)
 
 	__chargecompatiblegroups__ = (
 		const.groupFrequencyMiningLaser,
@@ -459,7 +489,7 @@ class Config(object):
 		const.groupMissileLauncherRocket,
 		const.groupMissileLauncherStandard,
 		const.groupMissileLauncherCitadel,
-		const.groupMissileLauncherSnowball,
+		const.groupMissileLauncherFestival,
 		const.groupBubbleProbeLauncher,
 		const.groupSensorBooster,
 		const.groupRemoteSensorBooster,
@@ -468,13 +498,19 @@ class Config(object):
 		const.groupTrackingDisruptor,
 		const.groupTrackingLink,
 		const.groupWarpDisruptFieldGenerator,
-		)
+		const.groupFueledShieldBooster,
+		const.groupFueledArmorRepairer,
+		const.groupSurveyProbeLauncher,
+		const.groupMissileLauncherRapidHeavy
+	)
 
-	__containerVolumes__ = {
+	__shipPackagedVolumesPerGroup__ = {
 		const.groupAssaultShip: 2500.0,
+		const.groupAttackBattlecruiser: 15000.0,
 		const.groupBattlecruiser: 15000.0,
 		const.groupBattleship: 50000.0,
 		const.groupBlackOps: 50000.0,
+		const.groupBlockadeRunner: 20000.0,
 		const.groupCapitalIndustrialShip: 1000000.0,
 		const.groupCapsule: 500.0,
 		const.groupCarrier: 1000000.0,
@@ -482,7 +518,6 @@ class Config(object):
 		const.groupCommandShip: 15000.0,
 		const.groupCovertOps: 2500.0,
 		const.groupCruiser: 10000.0,
-		const.groupStrategicCruiser: 10000.0,
 		const.groupDestroyer: 5000.0,
 		const.groupDreadnought: 1000000.0,
 		const.groupElectronicAttackShips: 2500.0,
@@ -502,19 +537,37 @@ class Config(object):
 		const.groupMarauders: 50000.0,
 		const.groupMiningBarge: 3750.0,
 		const.groupSupercarrier: 1000000.0,
+		const.groupPrototypeExplorationShip: 500.0,
 		const.groupRookieship: 2500.0,
 		const.groupShuttle: 500.0,
 		const.groupStealthBomber: 2500.0,
+		const.groupStrategicCruiser: 5000,
 		const.groupTitan: 10000000.0,
-		const.groupTransportShip: 20000.0,
-		const.groupCargoContainer: 1000.0,
-		const.groupMissionContainer: 1000.0,
-		const.groupSecureCargoContainer: 1000.0,
-		const.groupAuditLogSecureContainer: 1000.0,
-		const.groupFreightContainer: 1000.0,
-		const.groupStrategicCruiser: 5000.0,
-		const.groupPrototypeExplorationShip: 500.0,
-		}
+		const.groupTransportShip: 20000.0
+	}
+
+	__containerPackagedVolumesPerType__ = {
+		const.typeSmallStandardContainer: 10,
+		const.typeSmallSecureContainer: 10,
+		const.typeSmallAuditLogSecureContainer: 10,
+		const.typeMediumStandardContainer: 33,
+		const.typeMediumSecureContainer: 33,
+		const.typeMediumAuditLogSecureContainer: 33,
+		const.typeLargeStandardContainer: 65,
+		const.typeLargeSecureContainer: 65,
+		const.typeLargeAuditLogSecureContainer: 65,
+		const.typeHugeSecureContainer: 150,
+		const.typeGiantSecureContainer: 300,
+		const.typeSmallFreightContainer: 100,
+		const.typeMediumFreightContainer: 500,
+		const.typeLargeFreightContainer: 1000,
+		const.typeGiantFreightContainer: 1200,
+		const.typeEnormousFreightContainer: 2500,
+		const.typeHugeFreightContainer: 5000,
+		const.typeStationContainer: 10000,
+		const.typeStationVault: 50000,
+		const.typeStationWarehouse: 100000
+	}
 
 
 	#-------------------------------------------------------------------------------------------------------------------
@@ -533,9 +586,6 @@ class Config(object):
 	__tables__ = (
 
 #		( cfg attrib                  , (ver, del, storage class       , row class         , primary key           bulkID)),
-		("icons"                      , (242, 332, util.IndexRowset    , util.Row          , 'iconID'            , const.cacheResIcons)),
-		("sounds"                     , (242, 332, util.IndexRowset    , util.Row          , 'soundID'           , const.cacheResSounds)),
-
 		("invcategories"              , (  0,   0, util.IndexRowset    , InvCategory       , "categoryID"        , const.cacheInvCategories)),
 		("invgroups"                  , (  0,   0, util.IndexRowset    , InvGroup          , "groupID"           , const.cacheInvGroups)),
 		("invtypes"                   , (  0,   0, util.IndexRowset    , InvType           , "typeID"            , const.cacheInvTypes)),
@@ -598,14 +648,16 @@ class Config(object):
 		("schematicspinmap"           , (242,   0)),
 		("schematicsByPin"            , (242,   0)),
 
-		# new FSD stuff --------------- (ver, del,  static name       , schema name       , optimize   cache size)
+		# FSD stuff ------------------- (ver, del,  static name       , schema name       , optimize   cache size)
+		("messages"                   , (378,   0, ("dialogs"         , "dialogs"         , False)   , None)),
+
 		("fsdTypeOverrides"           , (324,   0, ("typeIDs"         , "typeIDs"         , False)   , None)),
 		("fsdPlanetAttributes"        , (324,   0, ("planetAttributes", "planetAttributes", False)   , 100 )),
-#		("fsdDustIcons"               , (XXX,   0, ("dustIcons"       , None              , None )   , None)),  # FIXME (@ Odyssey release?)
-		("graphics"                   , (324,   0, ("graphicIDs"      , "graphicIDs"      , None )   , 100 )),
-		("sounds"                     , (332,   0, ("soundIDs"        , "soundIDs"        , None )   , 100 )),
-		("icons"                      , (332,   0, ("iconIDs"         , "iconIDs"         , None )   , 100 )),
+		("graphics"                   , (324,   0, ("graphicIDs"      , "graphicIDs"      , True)    , 100 )),
+		("sounds"                     , (332,   0, ("soundIDs"        , "soundIDs"        , True)    , 100 )),
+		("icons"                      , (332,   0, ("iconIDs"         , "iconIDs"         , True)    , 100 )),
 
+		("fsdDustIcons"               , (378,   0, ("dustIcons"       , None              , None )   , None)),
 	)
 
 
@@ -903,25 +955,35 @@ class Config(object):
 		self._attrCache = {}
 
 
-	def _loadfsddata(self, tableName, resName, cacheNum):
-		# pre-Odyssey FileStaticData loader.
+	def _loadfsddata(self, tableName, resName, cacheNum, optimize):
+		# Custom FileStaticData loader.
 		# Grabs schema and binary blob from .stuff file.
 		res = self._eve.ResFile()
 		resFileName = "res:/staticdata/%s.schema" % resName
-		if not res.Open(resFileName):
-			raise RuntimeError("Could not load FSD data schema '%s'" % resFileName)
 
-		schema = fsd.LoadSchema(res.Read())
-		schema = fsd.GetUnOptimizedRuntimeSchema(schema)
-		schema = fsd.OptimizeSchema(schema, "Client")
+		if res.Open(resFileName):
+			schema = fsd.LoadSchema(res.Read())
+			if optimize:
+				schema = fsd.OptimizeSchema(schema)
+		else:
+			schema = None
 
 		resFileName = "res:/staticdata/%s.static" % resName
 		if not res.Open(resFileName):
 			raise RuntimeError("Could not load FSD static data '%s'" % resFileName)
 
-		if cacheNum:
-			return fsd.LoadIndexFromFile(res.fh, schema, cacheNum)
+		if schema is None:
+			schema, offset = fsd.LoadEmbeddedSchema(res.fh)
+		else:
+			offset = 0
 
+		fsd.PrepareSchema(schema)
+
+#		if schema['type'] == 'dict' and schema.get('buildIndex', False):
+#			# Disk-based access
+#			return fsd.LoadIndexFromFile(res.fh, schema, cacheNum, offset=offset)
+
+		# Memory-based access
 		return fsd.LoadFromString(res.Read(), schema)
 
 
@@ -938,7 +1000,7 @@ class Config(object):
 			raise RuntimeError("Unable to load '%s' (bulkID:%d)" % (tableName, bulkID))
 		
 		if issubclass(storageClass, util.IndexRowset):
-			rs = util.IndexRowset(obj.header.Keys(), obj, key=primaryKey, RowClass=rowClass, cfgInstance=self)
+			rs = storageClass(obj.header.Keys(), obj, key=primaryKey, RowClass=rowClass, cfgInstance=self)
 
 		elif issubclass(storageClass, util.FilterRowset):
 			rs = storageClass(obj.header.Keys(), obj, primaryKey, RowClass=rowClass)

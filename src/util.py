@@ -1,6 +1,6 @@
 """Data container classes, text formatting and item type checking functions
 
-Copyright (c) 2003-2012 Jamie "Entity" van den Berge <jamie@hlekkir.com>
+Copyright (c) 2003-2013 Jamie "Entity" van den Berge <jamie@hlekkir.com>
 
 This code is free software; you can redistribute it and/or modify
 it under the terms of the BSD license (see the file LICENSE.txt
@@ -30,11 +30,6 @@ DIGIT = ","	# thousands separator
 class Object:
 	pass
 
-class KeyVal:
-	__guid__ = "util.KeyVal"
-	def __repr__(self):
-		return "Anonymous KeyVal: %s" % self.__dict__
-
 
 def Singleton(dbrow):
 	# used as property getter by certain cache objects
@@ -54,11 +49,7 @@ def StackSize(dbrow):
 	return qty
 
 
-def RamActivityVirtualColumn(dbrow):
-# this does not work because the dbrow does not have a cfg attrib and we don't have a global one.
-# the RamDetail class will handle it.
-#   return cfg.ramaltypes.Get(dbrow.assemblyLineTypeID).activityID
-	return None
+
 
 
 class Row:
@@ -82,7 +73,12 @@ class Row:
 		return cmp(self.header, other.header) or cmp(self.line, other.line)
 
 	def __str__(self):
-		return "Row(" + ','.join(map(lambda k, v: "%s:%s" % (unicode(k), unicode(v)), self.header, self.line)) + ")"
+		if self.__class__ is Row:
+			# bare row class, use shortcut
+			return "Row(" + ','.join(map(lambda k, v: "%s:%s" % (unicode(k), unicode(v)), self.header, self.line)) + ")"
+		else:
+			# assume it has custom attribute handling (e.g. invtypes)
+			return "Row(" + ','.join(map(lambda k, v: "%s:%s" % (unicode(k), unicode(v)), self.header, map(self.__getattr__, self.header))) + ")"
 
 	__repr__ = __str__
 
@@ -323,9 +319,11 @@ class FilterRowset:
 class IndexedRowLists(dict):
 	__guid__ = 'util.IndexedRowLists'
 	__passbyvalue__ = 1
-	__slots__ = ()
+	__slots__ = ("header",)
 
 	def __init__(self, rows=[], keys=None):
+		if rows:
+			self.header = rows[0].__header__.Keys()
 		self.InsertMany(keys, rows)
 
 	def Insert(self, keys, row):
@@ -353,30 +351,12 @@ class IndexedRowLists(dict):
 
 
 	def __getitem__(self, key):
-		return dict.get(self, key, [])
+		return dict.get(self, key) or []
 
 
 class IndexedRows(IndexedRowLists):
 	__guid__ = 'util.IndexedRows'
 
-
-class CachedObject:
-	def __setstate__(self, state):
-		"""
-		for i in xrange(len(self.__persistvar__)):
-			if i >= len(state):
-				if self.__persistvar__[i] == '__shared__':
-					setattr(self, self.__persistvar__[i], 1)
-				else:
-					raise RuntimeError("Cached Object format version mismatch")
-			else:
-				setattr(self, self.__persistvar__[i], state[i])
-
-			self.__cachedObject__ = None
-			self.__thePickle__ = None
-			self.__compressed__ = 0
-		"""
-		#print state
 
 
 

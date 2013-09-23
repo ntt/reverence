@@ -153,7 +153,7 @@ class _SchemaOptimizer:
 		attributes = schema["attributes"]
 		for attr in attributes:
 			sa = attributes[attr]
-			if not sa.get('usage', "Client") == "Client"::
+			if not sa.get('usage', "Client") == "Client":
 				continue
 			oschema = _OptimizeSchema(sa)
 			newSchema['attributes'][attr] = oschema

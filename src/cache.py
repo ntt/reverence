@@ -177,7 +177,7 @@ class CacheMgr:
 			]
 		else:
 			# manually specified cachepath! only look there.
-			candidates.append((root, cachepath))
+			candidates.append((root, appdatapath))
 
 		#---------------------
 

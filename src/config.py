@@ -723,8 +723,8 @@ class Config(object):
 			auraName = "Aura"
 			sysName = "EVE System"
 
-		for id_ in const.auraAgentIDs:
-			d[id_].ownerName = auraName
+#		for id_ in const.auraAgentIDs:
+#			d[id_].ownerName = auraName
 		d[1] = blue.DBRow(rd, [1, sysName, 0, None, None])
 
 		rs.lines = rs.items.values()

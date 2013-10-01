@@ -137,7 +137,7 @@ class Localization(object):
 				return self._format(tr, kwarg, languageID)
 			return tr
 
-		return "<NO TEXT, messageID=%d, param=%s>" % (messageID, param)
+		return "<NO TEXT, messageID=%d, param=%s>" % (messageID, kwarg)
 
 
 	def GetByLabel(self, label, languageID=None, **kwarg):

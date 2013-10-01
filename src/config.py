@@ -40,11 +40,11 @@ def _localized_important(row, attr, messageID):
 	return _get(row, attr)
 
 
-OWNER_AURA_IDENTIFIER = -1
-OWNER_SYSTEM_IDENTIFIER = -2
-OWNER_NAME_OVERRIDES = {
-	OWNER_AURA_IDENTIFIER: 'UI/Agents/AuraAgentName',
-	OWNER_SYSTEM_IDENTIFIER: 'UI/Chat/ChatEngine/EveSystem'
+_OWNER_AURA_IDENTIFIER = -1
+_OWNER_SYSTEM_IDENTIFIER = -2
+_OWNER_NAME_OVERRIDES = {
+	_OWNER_AURA_IDENTIFIER: 'UI/Agents/AuraAgentName',
+	_OWNER_SYSTEM_IDENTIFIER: 'UI/Chat/ChatEngine/EveSystem'
 }
 
 # used by GetLocationsLocalBySystem method
@@ -89,7 +89,8 @@ class InvType(util.Row):
 		# check overrides
 		if attr in ('graphicID', 'soundID', 'iconID', 'radius'):
 			try:
-				return getattr((self.cfg or cfg).fsdTypeOverrides.Get(self.typeID), attr)
+				fsd = (self.cfg or cfg).fsdTypeOverrides
+				return getattr(fsd.Get(self.typeID), attr)
 			except (AttributeError, KeyError):
 				pass
 
@@ -652,6 +653,7 @@ class Config(object):
 		("messages"                   , (378,   0, ("dialogs"         , "dialogs"         , False)   , None)),
 
 		("fsdTypeOverrides"           , (324,   0, ("typeIDs"         , "typeIDs"         , False)   , None)),
+
 		("fsdPlanetAttributes"        , (324,   0, ("planetAttributes", "planetAttributes", False)   , 100 )),
 		("graphics"                   , (324,   0, ("graphicIDs"      , "graphicIDs"      , True)    , 100 )),
 		("sounds"                     , (332,   0, ("soundIDs"        , "soundIDs"        , True)    , 100 )),
@@ -709,8 +711,8 @@ class Config(object):
 				npcName = self._localization.GetImportantByMessageID(id_) or row.characterName
 				d[id_] = DBRow(rd, [id_, row.characterName, bloodlinesToTypes[row.bloodlineID], row.gender, row.characterNameID])
 
-			auraName = self._localization.GetImportantByLabel(_OWNER_NAME_OVERRIDES[OWNER_AURA_IDENTIFIER])
-			sysName = self._localization.GetByLabel(_OWNER_NAME_OVERRIDES[OWNER_SYSTEM_IDENTIFIER])
+			auraName = self._localization.GetImportantByLabel(_OWNER_NAME_OVERRIDES[_OWNER_AURA_IDENTIFIER])
+			sysName = self._localization.GetByLabel(_OWNER_NAME_OVERRIDES[_OWNER_SYSTEM_IDENTIFIER])
 		else:
 			# non-cerberus version
 			for row in self.cache.LoadBulk(const.cacheChrNpcCharacters):

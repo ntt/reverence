@@ -705,7 +705,11 @@ def PrepareSchema(schema):
 		PrepareSchema(schema['valueTypes'])
 		if "keyFooter" in schema:
 			PrepareSchema(schema['keyFooter'])
-		schema['header'] = schema['valueTypes']['attributes'].keys()
+		try:
+			schema['header'] = schema['valueTypes']['attributes'].keys()
+		except KeyError:
+			# apparently this info is gone from some fsd dicts in Rubicon
+			schema['header'] = ()
 
 	elif t == 'object':
 		if "endOfFixedSizeData" not in schema:

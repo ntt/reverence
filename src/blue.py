@@ -13,6 +13,8 @@ from time import sleep as _sleep
 
 from ._blue import marshal, DBRow, DBRowDescriptor
 from . import exceptions, cache, _os as os, _blue, pyFSD
+from reverence.carbon.common.lib.utillib import KeyVal
+
 
 __all__ = ["EVE", "marshal", "os", "pyos", "DBRow", "DBRowDescriptor"]
 
@@ -197,6 +199,10 @@ def _readstringstable():
 
 def _find_global(module, name):
 	# locates a global. used by marshal.Load and integrated unpickler
+
+	# compatibility
+	if module == "util" and name == "KeyVal":
+		return KeyVal
 	try:
 		m = __import__(module, globals(), locals(), (), -1)
 	except ImportError:

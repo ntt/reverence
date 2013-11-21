@@ -24,8 +24,10 @@ from . import _blue as blue
 from . import const, util
 from . import localization, fsd
 import reverence.carbon.common.script.sys.crowset as dbutil
+from reverence.carbon.common.script.sys.row import Row
+import reverence.eve.common.script.sys.rowset as util
 
-_get = util.Row.__getattr__
+_get = Row.__getattr__
 
 def _localized(row, attr, messageID):
 	_cfg = (row.cfg or cfg)
@@ -62,7 +64,7 @@ _solarSystemObjectRowDescriptor = blue.DBRowDescriptor((
 ))
 
 
-class Billtype(util.Row):
+class Billtype(Row):
 	__guid__ = 'cfg.Billtype'
 
 	def __getattr__(self, name):
@@ -75,7 +77,7 @@ class Billtype(util.Row):
 		return 'Billtype ID: %d' % self.billTypeID
 
 
-class InvType(util.Row):
+class InvType(Row):
 	__guid__ = "sys.InvType"
 
 	def __getattr__(self, attr):
@@ -144,7 +146,7 @@ class InvType(util.Row):
 		return (self.cfg or cfg).GetTypeAttribute2(self.typeID, attributeID)
 
 
-class InvGroup(util.Row):
+class InvGroup(Row):
 	__guid__ = "sys.InvGroup"
 
 	def Category(self):
@@ -158,7 +160,7 @@ class InvGroup(util.Row):
 		return _get(self, attr)
 
 
-class InvCategory(util.Row):
+class InvCategory(Row):
 	__guid__ = "sys.InvCategory"
 
 	def __getattr__(self, attr):
@@ -172,7 +174,7 @@ class InvCategory(util.Row):
 		return self.categoryID == const.categoryModule
 
 
-class InvMetaGroup(util.Row):
+class InvMetaGroup(Row):
 	__guid__ = "cfg.InvMetaGroup"
 
 	def __getattr__(self, name):
@@ -185,7 +187,7 @@ class InvMetaGroup(util.Row):
 		return _get(self, name)
 
 
-class DgmAttribute(util.Row):
+class DgmAttribute(Row):
 	__guid__ = "cfg.DgmAttribute"
 
 	def __getattr__(self, name):
@@ -194,7 +196,7 @@ class DgmAttribute(util.Row):
 		return _get(self, name)
 
 
-class DgmEffect(util.Row):
+class DgmEffect(Row):
 	__guid__ = "cfg.DgmEffect"
 
 	def __getattr__(self, name):
@@ -205,7 +207,7 @@ class DgmEffect(util.Row):
 		return _get(self, name)
 
 
-class EveOwners(util.Row):
+class EveOwners(Row):
 	__guid__ = "cfg.EveOwners"
 
 	def __getattr__(self, name):
@@ -232,7 +234,7 @@ class EveOwners(util.Row):
 		return self.cfg.invgroups.Get(self.groupID)
 
 
-class EveLocations(util.Row):
+class EveLocations(Row):
 	__guid__ = "dbrow.Location"
 
 	def __getattr__(self, name):
@@ -265,7 +267,7 @@ class EveLocations(util.Row):
 #		return self.cfg.GetSvc("stationSvc").GetStation(self.id)
 
 
-class RamCompletedStatus(util.Row):
+class RamCompletedStatus(Row):
 	def __getattr__(self, name):
 		if name in ("name", "completedStatusName"):
 			return _localized(self, "completedStatusName", self.completedStatusTextID)
@@ -281,7 +283,7 @@ class RamCompletedStatus(util.Row):
 			return "RamCompletedStatus containing crappy data"
 
 
-class RamActivity(util.Row):
+class RamActivity(Row):
 	def __getattr__(self, name):
 		if name in ("name", "activityName"):
 			return _localized(self, "activityName", self.activityNameID)
@@ -297,14 +299,14 @@ class RamActivity(util.Row):
 			return "RamActivity containing crappy data"
 
 
-class RamDetail(util.Row):
+class RamDetail(Row):
 	def __getattr__(self, name):
    		if name == "activityID":
 			return self.cfg.ramaltypes.Get(self.assemblyLineTypeID).activityID
    		return _get(self, name)
 
 
-class MapCelestialDescription(util.Row):
+class MapCelestialDescription(Row):
 	def __getattr__(self, name):
 		if name == "description":
 			return _localized(self, "description", self.descriptionID)
@@ -314,7 +316,7 @@ class MapCelestialDescription(util.Row):
 		return "MapCelestialDescriptions ID: %d" % (self.itemID)
 
 
-class CrpTickerNames(util.Row):
+class CrpTickerNames(Row):
 	def __getattr__(self, name):
 		if name in ("name", "description"):
 			return _get(self, "tickerName")
@@ -324,7 +326,7 @@ class CrpTickerNames(util.Row):
 		return "CorpTicker ID: %d, \"%s\"" % (self.corporationID, self.tickerName)
 
 
-class AllShortNames(util.Row):
+class AllShortNames(Row):
 	__guid__ = 'cfg.AllShortNames'
 
 	def __getattr__(self, name):
@@ -336,7 +338,7 @@ class AllShortNames(util.Row):
 		return "AllianceShortName ID: %d, \"%s\"" % (self.allianceID, self.shortName)
 
 
-class Certificate(util.Row):
+class Certificate(Row):
 	__guid__ = 'cfg.Schematic'
 
 	def __getattr__(self, name):
@@ -348,7 +350,7 @@ class Certificate(util.Row):
 		return "Certificate ID: %d" % (self.certificateID)
 
 
-class Schematic(util.Row):
+class Schematic(Row):
 	__guid__ = 'cfg.Schematic'
 
 	def __getattr__(self, name):
@@ -363,7 +365,7 @@ class Schematic(util.Row):
 		if type(other) is int:
 			return int.__cmp__(self.schematicID, other)
 		else:
-			return util.Row.__cmp__(self, other)
+			return Row.__cmp__(self, other)
 
 
 # Warning: Code below may accidentally your whole brain.
@@ -591,18 +593,18 @@ class Config(object):
 		("invgroups"                  , (  0,   0, util.IndexRowset    , InvGroup          , "groupID"           , const.cacheInvGroups)),
 		("invtypes"                   , (  0,   0, util.IndexRowset    , InvType           , "typeID"            , const.cacheInvTypes)),
 		("invmetagroups"              , (  0,   0, util.IndexRowset    , InvMetaGroup      , "metaGroupID"       , const.cacheInvMetaGroups)),
-		("invbptypes"                 , (  0,   0, util.IndexRowset    , util.Row          , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
-		("invreactiontypes"           , (  0,   0, util.FilterRowset   , util.Row          , "reactionTypeID"    , const.cacheInvTypeReactions)),
-		("shiptypes"                  , (  0,   0, util.IndexRowset    , util.Row          , "shipTypeID"        , const.cacheShipTypes)),
+		("invbptypes"                 , (  0,   0, util.IndexRowset    , Row          , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
+		("invreactiontypes"           , (  0,   0, util.FilterRowset   , Row          , "reactionTypeID"    , const.cacheInvTypeReactions)),
+		("shiptypes"                  , (  0,   0, util.IndexRowset    , Row          , "shipTypeID"        , const.cacheShipTypes)),
 
 		("dgmattribs"                 , (  0,   0, util.IndexRowset    , DgmAttribute      , "attributeID"       , const.cacheDogmaAttributes)),
 		("dgmeffects"                 , (  0,   0, util.IndexRowset    , DgmEffect         , "effectID"          , const.cacheDogmaEffects)),
 		("dgmtypeattribs"             , (  0,   0, util.IndexedRowLists, None              , ('typeID',)         , const.cacheDogmaTypeAttributes)),
 		("dgmtypeeffects"             , (  0,   0, util.IndexedRowLists, None              , ('typeID',)         , const.cacheDogmaTypeEffects)),
-		("dgmexpressions"             , (297,   0, util.IndexRowset    , util.Row          , 'expressionID'      , const.cacheDogmaExpressions)),
-		("dgmunits"                   , (299,   0, util.IndexRowset    , util.Row          , "unitID"            , const.cacheDogmaUnits)),
+		("dgmexpressions"             , (297,   0, util.IndexRowset    , Row          , 'expressionID'      , const.cacheDogmaExpressions)),
+		("dgmunits"                   , (299,   0, util.IndexRowset    , Row          , "unitID"            , const.cacheDogmaUnits)),
 
-		("ramaltypes"                 , (  0,   0, util.IndexRowset    , util.Row          , "assemblyLineTypeID", const.cacheRamAssemblyLineTypes)),
+		("ramaltypes"                 , (  0,   0, util.IndexRowset    , Row          , "assemblyLineTypeID", const.cacheRamAssemblyLineTypes)),
 		("ramactivities"              , (  0,   0, util.IndexRowset    , RamActivity       , "activityID"        , const.cacheRamActivities)),
 		("ramcompletedstatuses"       , (276,   0, util.IndexRowset    , RamCompletedStatus, "completedStatus"   , const.cacheRamCompletedStatuses)),
 		("ramaltypesdetailpercategory", (  0,   0, util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesCategory)),
@@ -610,27 +612,27 @@ class Config(object):
 
 		("billtypes"                  , (  0,   0, util.IndexRowset    , Billtype          , 'billTypeID'        , const.cacheActBillTypes)),
 		("certificates"               , (  0,   0, util.IndexRowset    , Certificate       , "certificateID"     , const.cacheCertificates)),
-		("certificaterelationships"   , (  0,   0, util.IndexRowset    , util.Row          , "relationshipID"    , const.cacheCertificateRelationships)),
+		("certificaterelationships"   , (  0,   0, util.IndexRowset    , Row          , "relationshipID"    , const.cacheCertificateRelationships)),
 
 		("schematics"                 , (242,   0, util.IndexRowset    , Schematic         , 'schematicID'       , const.cachePlanetSchematics)),
 		("ramtyperequirements"        , (242,   0, dict                , None          , ('typeID', 'activityID'), const.cacheRamTypeRequirements)),
 		("invtypematerials"           , (254,   0, dict                , None              , 'typeID'            , const.cacheInvTypeMaterials)),
 
 		# location/owner stuff.
-		("factions"                   , (276,   0, util.IndexRowset    , util.Row          , "factionID"         , const.cacheChrFactions)),
-		("npccorporations"            , (276,   0, util.IndexRowset    , util.Row          , "corporationID"     , const.cacheCrpNpcCorporations)),
+		("factions"                   , (276,   0, util.IndexRowset    , Row          , "factionID"         , const.cacheChrFactions)),
+		("npccorporations"            , (276,   0, util.IndexRowset    , Row          , "corporationID"     , const.cacheCrpNpcCorporations)),
 		("corptickernames"            , (  0,   0, util.IndexRowset    , CrpTickerNames    , "corporationID"     , const.cacheCrpTickerNamesStatic)),
 
-		("staoperationtypes"          , (299,   0, util.IndexRowset    , util.Row          , "operationID"       , const.cacheStaOperations)),
+		("staoperationtypes"          , (299,   0, util.IndexRowset    , Row          , "operationID"       , const.cacheStaOperations)),
 		("mapcelestialdescriptions"   , (276,   0, util.IndexRowset    , MapCelestialDescription, "itemID"       , const.cacheMapCelestialDescriptions)),
-		("locationwormholeclasses"    , (  0,   0, util.IndexRowset    , util.Row          , "locationID"        , const.cacheMapLocationWormholeClasses)),
+		("locationwormholeclasses"    , (  0,   0, util.IndexRowset    , Row          , "locationID"        , const.cacheMapLocationWormholeClasses)),
 
-		("regions"                    , (299,   0, util.IndexRowset    , util.Row          , "regionID"          , const.cacheMapRegionsTable)),
-		("constellations"             , (299,   0, util.IndexRowset    , util.Row          , "constellationID"   , const.cacheMapConstellationsTable)),
-		("solarsystems"               , (299,   0, util.IndexRowset    , util.Row          , "solarSystemID"     , const.cacheMapSolarSystemsTable)),
-		("stations"                   , (299,   0, util.IndexRowset    , util.Row          , "stationID"         , const.cacheStaStationsStatic)),
+		("regions"                    , (299,   0, util.IndexRowset    , Row          , "regionID"          , const.cacheMapRegionsTable)),
+		("constellations"             , (299,   0, util.IndexRowset    , Row          , "constellationID"   , const.cacheMapConstellationsTable)),
+		("solarsystems"               , (299,   0, util.IndexRowset    , Row          , "solarSystemID"     , const.cacheMapSolarSystemsTable)),
+		("stations"                   , (299,   0, util.IndexRowset    , Row          , "stationID"         , const.cacheStaStationsStatic)),
 
-		("nebulas"                    , (299,   0, util.IndexRowset    , util.Row          , "locationID"        , const.cacheMapNebulas)),
+		("nebulas"                    , (299,   0, util.IndexRowset    , Row          , "locationID"        , const.cacheMapNebulas)),
 
 		# autogenerated FilterRowsets from some of the above tables
 		("groupsByCategories"         , (  0,   0, "invgroups"         , None              , "categoryID"        , None)),

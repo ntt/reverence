@@ -73,7 +73,7 @@ def _find_appdata_path(root, servername, wineprefix):
 		if _exists(actualroot):
 			root = actualroot
 
-	elif os.name == "posix":
+	elif os.name == "posix" or os.name == "linux2":
 		import pwd
 
 		# Assuming a WINE install, we are now going to have to do

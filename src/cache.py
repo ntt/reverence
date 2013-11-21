@@ -172,7 +172,7 @@ class CacheMgr:
 		if discover:
 			# auto-discovery of appdata path. try a few places...
 			candidates = [
-				(root, _join(root, "cache")),
+				(root, _join(root, "")),
 				_find_appdata_path(root, servername, wineprefix),
 			]
 		else:

@@ -29,6 +29,24 @@ _exists = os.path.exists
 def GetCacheFileName(key, machoVersion=99999):
 	"""Returns filename for specified object name."""
 	if machoVersion >= 213:
+		# BEGIN UGLY HACK ----------------------------------------------------
+		# CCP is relying on pickle to produce consistent output, which it does
+		# not because pickle's output depends on the refcount of objects; an
+		# object referenced only once will not get memoized. Cache keys are
+		# seemingly always created by EVE with refcounts >1. When Reverence
+		# decodes them, they only have a refcount of 1. This code ensures that
+		# those refcounts are increased so cPickle produces the correct output
+		# when you feed a decoded object's key to this function.
+		# (and no, copy.deepcopy doesn't work as expected on tuples)
+		memoize = [].append
+		def increase_refcounts(k):
+			if type(k) is tuple:
+				for element in k:
+					increase_refcounts(element)
+			memoize(k)
+		increase_refcounts(key)
+		# END UGLY HACK ------------------------------------------------------
+
 		return "%x.cache" % binascii.crc_hqx(cPickle.dumps(key), 0)
 	else:
 		raise RuntimeError("machoNet version 213 or higher required")

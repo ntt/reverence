@@ -32,13 +32,13 @@ _get = Row.__getattr__
 def _localized(row, attr, messageID):
 	_cfg = (row.cfg or cfg)
 	if _cfg._languageID:
-		return _cfg._localized.GetByMessageID(messageID)
+		return _cfg._localization.GetByMessageID(messageID)
 	return _get(row, attr)
 
 def _localized_important(row, attr, messageID):
 	_cfg = (row.cfg or cfg)
 	if _cfg._languageID:
-		return _cfg._localized.GetImportantByMessageID(messageID)
+		return _cfg._localization.GetImportantByMessageID(messageID)
 	return _get(row, attr)
 
 

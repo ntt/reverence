@@ -65,7 +65,7 @@ or erroneous data may compromise your system's security and/or stability.
 INSTALLATION
 ============
 Windows users can download an installer here:
-http://github.com/ntt/reverence/
+https://www.dropbox.com/sh/xd6id81qi6jo0o9/jdAjrZU2wP
 
 Linux users:
 Download the source distribution from the same location as above, extract the

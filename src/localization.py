@@ -71,6 +71,9 @@ class NpcOrganizationPropertyHandler(BasePropertyHandler):
 		return self.cfg.eveowners.Get(npcOrganizationID).GetRawName(languageID)
 
 
+class NumericPropertyHandler(BasePropertyHandler):
+	__id__ = 9
+
 
 class Localization(object):
 
@@ -83,26 +86,38 @@ class Localization(object):
 				self._propertyHandlers[cls.__id__] = cls(self, cfgInstance)
 
 		stuff = embedfs.EmbedFS(os.path.join(root, "resLocalization.stuff"))
+		stuffFSD = embedfs.EmbedFS(os.path.join(root, "resLocalizationFSD.stuff"))
+
+		def _loadlanguage(languageID, s1, s2):
+			x, data = cPickle.loads(s1.open("res/localization/localization_%s.pickle" % languageID).read())
+			data.update(cPickle.loads(s2.open("res/localizationFSD/localization_fsd_%s.pickle" % languageID).read())[1])
+			return data
+
+		self.languageID = languageID
 
 		# load primary language
-		self.languageID, self.primary = cPickle.loads(stuff.open("res/localization/localization_%s.pickle" % languageID).read())
+		self.primary = _loadlanguage(languageID, stuff, stuffFSD)
 
 		# if the primary language isn't english, load the english pack as fallback
 		if languageID != "en-us":
-			x, self.fallback = cPickle.loads(stuff.open("res/localization/localization_en-us.pickle").read())
+			self.fallback = _loadlanguage("en-us", stuff, stuffFSD)
 		else:
 			self.fallback = None
 
 		# load labels
-		unPickledObject = cPickle.loads(stuff.open("res/localization/localization_main.pickle").read())
-		self.languageLabels = {}
-		for messageID, dataRow in unPickledObject['labels'].iteritems():
-			fp = dataRow['FullPath']
-			label = fp + '/' + dataRow['label'] if fp else dataRow['label']
-			self.languageLabels[label.encode('ascii')] = messageID
+		for efs, resname in (
+			(stuff, "res/localization/localization_main.pickle"),
+			(stuffFSD, "res/localizationFSD/localization_fsd_main.pickle"),
+		):
+			unPickledObject = cPickle.loads(efs.open(resname).read())
+			self.languageLabels = {}
+			for messageID, dataRow in unPickledObject['labels'].iteritems():
+				fp = dataRow['FullPath']
+				label = fp + '/' + dataRow['label'] if fp else dataRow['label']
+				self.languageLabels[label.encode('ascii')] = messageID
 
 		# clean up some stuff immediately (frees ~4MB)
-		del unPickledObject, stuff
+		del unPickledObject, stuff, stuffFSD
 		gc.collect()
 
 
@@ -135,7 +150,7 @@ class Localization(object):
 		if tr:
 			if kwarg or tr[2]:
 				return self._format(tr, kwarg, languageID)
-			return tr
+			return tr[0]
 
 		return "<NO TEXT, messageID=%d, param=%s>" % (messageID, kwarg)
 

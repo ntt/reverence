@@ -59,7 +59,7 @@ class _ResFile(object):
 		self.rot = rot
 
 	def Open(self, filename):
-		self.fh = None
+		self.Close()
 		try:
 			if filename.startswith("res:"):
 				# we gotta have to open a .stuff file...

@@ -55,9 +55,18 @@ def LoadSchema(f):
 	return yaml.load(f, Loader=_SchemaLoader)
 
 def LoadEmbeddedSchema(f):
+	pos = f.tell()
 	size = _uint32(f.read(4))
-	return cPickle.loads(f.read(size)), size
-
+	try:
+		# there's a possibility this blind unpickle goes spectacularly wrong.
+		return cPickle.load(f), size
+	except cPickle.UnpicklingError:
+		# it is not a pickle, restore position in file.
+		f.seek(pos)
+		raise RuntimeError("LoadEmbeddedSchema called on file without embedded schema")
+	finally:
+		# update filehandle state after cPickle.load() (see virtualfile.c)
+		f.tell()
 
 
 #-----------------------------------------------------------------------------
@@ -65,7 +74,9 @@ def LoadEmbeddedSchema(f):
 #-----------------------------------------------------------------------------
 
 _typeSizes = {
+ 'int'     : struct.calcsize("I"),
  'typeID'  : struct.calcsize("I"),
+ 'localizationID' : struct.calcsize("I"),
  'float'   : struct.calcsize("f"),
  'single'  : struct.calcsize("f"),
  'vector2' : struct.calcsize("ff"),
@@ -81,7 +92,7 @@ _typeSizes = {
 
 def IsFixedSize(schema):
 	t = schema['type']
-	if t in ('float', 'int', 'typeID', 'vector2', 'vector3', 'vector4', 'enum', 'bool'):
+	if t in _typeSizes:
 		return True
 	if t == 'object':
 		attributes = schema['attributes']
@@ -388,9 +399,15 @@ class FSD_Dict(object):
 		self.offset = offset + 4
 		endOfFooter = offset + _uint32(data, offset)
 		footerOffset = endOfFooter - _uint32(data, endOfFooter)
-		if schema['keyTypes']['type'] == 'int':
+
+		try:
+			hassize = 'size' in schema['keyFooter']['itemTypes']['attributes']
+		except KeyError:
+			hassize = True
+
+		if schema['keyTypes']['type'] in 'int':
 			self.footer = pyFSD.FsdUnsignedIntegerKeyMap()
-			self.footer.Initialize(data, footerOffset)
+			self.footer.Initialize(data, footerOffset, hassize)
 		else:
 			self.footer = _DictFooter(data, footerOffset, schema['keyFooter'])
 		self.valueSchema = schema['valueTypes']
@@ -559,6 +576,7 @@ class FSD_Object(object):
 		else:
 			# variable sized object. figure out what optional attributes we have.
 			if schema['optionalValueLookups']:
+				#print "Get attrbits @ %s+%s" % (offset, schema['endOfFixedSizeData'])
 				attr_bits = _uint32(data, offset + schema['endOfFixedSizeData'])
 				if attr_bits:
 					# some attribute bits are set. figure out what attributes are actually there ...
@@ -590,11 +608,13 @@ class FSD_Object(object):
 					}
 				else:
 					_offsets = dict(zip(_oa, map((_off + 4*_num).__add__, _vectorunpackers[_num](data, offset + _off))))
+				#print "OFFSETS[%d] = %s" % (_num, _offsets)
 
 				_offsets.update(schema['constantAttributeOffsets'])
 				self._get_offset = _offsets.get
 			else:
 				self._get_offset = schema['constantAttributeOffsets'].get
+
 
 
 	def __getitem__(self, key):
@@ -651,6 +671,8 @@ _loaders = {
 	'resPath' : _string,
 	'unicode' : lambda data, offset, schema: _string(data, offset).decode('utf-8'),
 	'enum'    : Load_Enum,
+
+	'localizationID' : _int32,  # rubicon 1.1
 	
 	# compounds
 	'vector4' : lambda data, offset, schema: _vector4(data, offset),
@@ -685,6 +707,9 @@ def PrepareSchema(schema):
 
 	t = schema.get('type')
 	schema['loader'] = _loaders[t]
+
+	if t in _typeSizes:
+		schema['size'] = _typeSizes[t]
 
 	if t.startswith("vector"):
 		if schema.get('precision') == 'double':
@@ -726,6 +751,9 @@ def PrepareSchema(schema):
 	elif t == 'int':
 		if schema.get("min", -1) >= 0 or schema.get("exclusiveMin", -2) >= -1:
 			schema['loader'] = _uint32
+
+	elif t == "localizationID":
+		schema['loader'] = _uint32
 
 	elif t == 'union':
 		for s in newSchema['optionTypes'].itervalues():

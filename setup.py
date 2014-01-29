@@ -46,7 +46,7 @@ setup(
 
 	url = "http://github.com/ntt/reverence",
 
-	version = "1.6.3",
+	version = "1.6.4",
 
 	install_requires = ['PyYAML'],
 

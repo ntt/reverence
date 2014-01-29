@@ -10,23 +10,29 @@ extern "C" {
 
 typedef struct {
 	uint32_t key;
-	uint32_t value1;
-	uint32_t value2;
+	uint32_t offset;
+	uint32_t size;
 } keymap_entry;
+
+
+typedef struct {
+	int32_t count;
+	keymap_entry entry[1];
+} keymap;
 
 
 typedef struct {
     PyObject_HEAD
 	PyObject *km_ref;   // safety ref to string object containing keymap blob
-    keymap_entry *km_data;  // pointer to keymap
-	int km_length; // number of entries in keymap
+    keymap *km_map;  // pointer to keymap
+	int km_entrysize;
 } PyKeyMapObject;
 
 typedef struct {
 	PyObject_HEAD
 	PyKeyMapObject *kmi_keymap;
 	int kmi_index;
-	int kmi_mode;   // 0 = keys, 1 = values, 2 = (key,value)
+	int kmi_mode;   // 0 = iterkeys, 1 = itervalues, 2 = iteritems, 3 = itervalues(nosize), 4 = iteritems(nosize)
 } PyKeyMapIteratorObject;
 
 

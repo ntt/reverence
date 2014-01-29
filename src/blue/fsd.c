@@ -48,28 +48,32 @@ keymapiter_dealloc(PyKeyMapIteratorObject *self)
 	self->ob_type->tp_free((PyObject *)self);
 }
 
+
+#define ITERKEYS 0
+#define ITERVALUES 1
+#define ITERITEMS 2
+#define ITERVALUES_NS 3
+#define ITERITEMS_NS 4
+
 PyObject *
 keymapiter_next(PyKeyMapIteratorObject *self)
 {
 	keymap_entry *entry;
+	int size;
 
-	if(self->kmi_index < 0 || self->kmi_index >= self->kmi_keymap->km_length)
+	if(self->kmi_index < 0 || self->kmi_index >= self->kmi_keymap->km_map->count)
 		return NULL;
 
-	entry = &self->kmi_keymap->km_data[self->kmi_index++];
+	entry = (keymap_entry *)&(((char *)self->kmi_keymap->km_map->entry)[self->kmi_keymap->km_entrysize * self->kmi_index++]);
+	size = (self->kmi_keymap->km_entrysize == 12) ? entry->size : 0;
 
 	switch(self->kmi_mode)
 	{
-		case 0:  // iterkeys
-			return PyLong_FromUnsignedLong(entry->key);
-		case 1:  // itervalues
-			return Py_BuildValue("II", entry->value1, entry->value2);
-		case 2:  // iteritems
-			return Py_BuildValue("I(II)", entry->key, entry->value1, entry->value2);
-		case 3:  // itervalues_nosize
-			return PyLong_FromUnsignedLong(entry->value1);
-		case 4:  // iteritems_nosize
-			return Py_BuildValue("II", entry->key, entry->value1);
+		case ITERKEYS      : return PyLong_FromUnsignedLong(entry->key);
+		case ITERVALUES    : return Py_BuildValue("II", entry->offset, size);
+		case ITERITEMS     : return Py_BuildValue("I(II)", entry->key, entry->offset, size);
+		case ITERVALUES_NS : return PyLong_FromUnsignedLong(entry->offset);
+		case ITERITEMS_NS  : return Py_BuildValue("II", entry->key, entry->offset);
 		default:
 			PyErr_Format(PyExc_RuntimeError, "Invalid mode for KeyMapIterator: %d", self->kmi_mode);
 			return NULL;
@@ -128,16 +132,22 @@ PyTypeObject PyKeyMapIterator_Type = {
 static PyObject *
 keymap_initialize(PyKeyMapObject *self, PyObject *args)
 {
-	PyStringObject *pydata;
-	char *data;
+	PyStringObject *pydata = NULL;
+	char *data = NULL;
 	Py_ssize_t size;
 	int offset = 0;
-	int length;
+	int hassize = 1;
 
-	if(!PyArg_ParseTuple(args, "S|i:Initialize", &pydata, &offset))
+	if(!PyArg_ParseTuple(args, "S|ii:Initialize", &pydata, &offset, &hassize))
 		return NULL;
 
 	PyString_AsStringAndSize((PyObject *)pydata, &data, &size);
+
+	if(offset < 0)
+	{
+		PyErr_Format(PyExc_ValueError, "Initialize received bogus offset: %d", offset);
+		return NULL;
+	}
 
 	if(offset > (size-4))
 	{
@@ -145,20 +155,15 @@ keymap_initialize(PyKeyMapObject *self, PyObject *args)
 		return NULL;
 	}
 
-	// get number of entries in keymap
-	length = *(int32_t *)&data[offset];
-	data += (offset+4);
+	self->km_entrysize = hassize ? 12 : 8;
+	self->km_map = (keymap *)&data[offset];
 	size -= (offset+4);
 
-	if(size < length)
+	if((int32_t)size < self->km_map->count*self->km_entrysize)
 	{
-		PyErr_Format(PyExc_ValueError, "Not enough data in buffer, expected %d bytes", length);
+		PyErr_Format(PyExc_ValueError, "Not enough data in buffer, expected %d bytes", self->km_map->count*self->km_entrysize);
 		return NULL;
 	}
-
-	// we're at start of map data now
-	self->km_data = (void *)data;
-	self->km_length = length;
 
 	// keep safety reference to string object
 	self->km_ref = (PyObject *)pydata;
@@ -190,6 +195,7 @@ _internal_get(PyKeyMapObject *self, PyObject *key, int raise)
 
 	uint32_t k;
 	keymap_entry *entry;
+	int size;
 
 	if(!PyInt_Check(key) && !PyLong_Check(key))
 	{
@@ -201,7 +207,7 @@ _internal_get(PyKeyMapObject *self, PyObject *key, int raise)
 
 	/* note: using &k as a keymap_entry* parameter to the _keycmp function.
 	   this works because only the first member of it (key) is accessed. */
-	entry = bsearch(&k, self->km_data, self->km_length, 12, (void *)_keycmp);
+	entry = bsearch(&k, self->km_map->entry, self->km_map->count, self->km_entrysize, (void *)_keycmp);
 	if(!entry)
 	{
 		if(raise)
@@ -213,7 +219,9 @@ _internal_get(PyKeyMapObject *self, PyObject *key, int raise)
 		return Py_None;
 	}
 
-	return Py_BuildValue("II", entry->value1, entry->value2);
+	size = (self->km_entrysize == 12) ? entry->size : 0;
+
+	return Py_BuildValue("II", entry->offset, size);
 }
 
 static PyObject *
@@ -242,7 +250,7 @@ keymap_dealloc(PyKeyMapObject *self)
 static int
 keymap_obj_length(PyKeyMapObject *self)
 {
-	return self->km_length;
+	return self->km_map->count;
 }
 
 static PyObject *

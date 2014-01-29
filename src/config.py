@@ -207,6 +207,17 @@ class DgmEffect(Row):
 		return _get(self, name)
 
 
+class DgmUnit(Row):
+	__guid__ = 'cfg.DgmUnit'
+
+	def __getattr__(self, name):
+		if name == 'displayName':
+			return _localized(self, "displayName", self.displayNameID)
+		if name == 'description':
+			return _localized(self, "description", self.descriptionID)
+		return _get(self, name)
+
+
 class EveOwners(Row):
 	__guid__ = "cfg.EveOwners"
 
@@ -405,23 +416,7 @@ def _loader(attrName):
 		if len(entry) == 4:
 			# FSD loader
 			ver, rem, (staticName, schemaName, optimize), cacheNum = entry
-			if self.useCCPlibs:
-				# odyssey fsd loader (uses CCP code directly)
-				# deprecated in ody1.1, but still works if fsd lib is present
-				from . import blue as bloo
-				_rf = bloo.ResFile
-				try:
-					bloo.ResFile = self._eve.ResFile
-					if optimize is None:
-						optimize = True
-					staticName = 'res:/staticdata/%s.static' % staticName
-					schemaName = 'res:/staticdata/%s.schema' % schemaName if schemaName else None
-					return self._fsdBinaryLoader.LoadFSDDataForCFG(staticName, schemaName, optimize=optimize)
-				finally:
-					bloo.ResFile = _rf
-			else:
-				# use custom loader
-				return self._loadfsddata(attrName, staticName, cacheNum, optimize=optimize)
+			return self._loadfsddata(staticName, schemaName, cacheNum, optimize=optimize)
 
 	method.func_name = attrName
 	return method
@@ -593,46 +588,46 @@ class Config(object):
 		("invgroups"                  , (  0,   0, util.IndexRowset    , InvGroup          , "groupID"           , const.cacheInvGroups)),
 		("invtypes"                   , (  0,   0, util.IndexRowset    , InvType           , "typeID"            , const.cacheInvTypes)),
 		("invmetagroups"              , (  0,   0, util.IndexRowset    , InvMetaGroup      , "metaGroupID"       , const.cacheInvMetaGroups)),
-		("invbptypes"                 , (  0,   0, util.IndexRowset    , Row          , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
-		("invreactiontypes"           , (  0,   0, util.FilterRowset   , Row          , "reactionTypeID"    , const.cacheInvTypeReactions)),
-		("shiptypes"                  , (  0,   0, util.IndexRowset    , Row          , "shipTypeID"        , const.cacheShipTypes)),
+		("invbptypes"                 , (  0,   0, util.IndexRowset    , Row               , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
+		("invreactiontypes"           , (  0,   0, util.FilterRowset   , Row               , "reactionTypeID"    , const.cacheInvTypeReactions)),
+		("shiptypes"                  , (  0,   0, util.IndexRowset    , Row               , "shipTypeID"        , const.cacheShipTypes)),
 
 		("dgmattribs"                 , (  0,   0, util.IndexRowset    , DgmAttribute      , "attributeID"       , const.cacheDogmaAttributes)),
 		("dgmeffects"                 , (  0,   0, util.IndexRowset    , DgmEffect         , "effectID"          , const.cacheDogmaEffects)),
 		("dgmtypeattribs"             , (  0,   0, util.IndexedRowLists, None              , ('typeID',)         , const.cacheDogmaTypeAttributes)),
 		("dgmtypeeffects"             , (  0,   0, util.IndexedRowLists, None              , ('typeID',)         , const.cacheDogmaTypeEffects)),
-		("dgmexpressions"             , (297,   0, util.IndexRowset    , Row          , 'expressionID'      , const.cacheDogmaExpressions)),
-		("dgmunits"                   , (299,   0, util.IndexRowset    , Row          , "unitID"            , const.cacheDogmaUnits)),
+		("dgmexpressions"             , (297,   0, util.IndexRowset    , Row               , 'expressionID'      , const.cacheDogmaExpressions)),
+		("dgmunits"                   , (299,   0, util.IndexRowset    , DgmUnit           , "unitID"            , const.cacheDogmaUnits)),
 
-		("ramaltypes"                 , (  0,   0, util.IndexRowset    , Row          , "assemblyLineTypeID", const.cacheRamAssemblyLineTypes)),
+		("ramaltypes"                 , (  0,   0, util.IndexRowset    , Row               , "assemblyLineTypeID", const.cacheRamAssemblyLineTypes)),
 		("ramactivities"              , (  0,   0, util.IndexRowset    , RamActivity       , "activityID"        , const.cacheRamActivities)),
 		("ramcompletedstatuses"       , (276,   0, util.IndexRowset    , RamCompletedStatus, "completedStatus"   , const.cacheRamCompletedStatuses)),
 		("ramaltypesdetailpercategory", (  0,   0, util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesCategory)),
 		("ramaltypesdetailpergroup"   , (  0,   0, util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesGroup)),
 
 		("billtypes"                  , (  0,   0, util.IndexRowset    , Billtype          , 'billTypeID'        , const.cacheActBillTypes)),
-		("certificates"               , (  0,   0, util.IndexRowset    , Certificate       , "certificateID"     , const.cacheCertificates)),
-		("certificaterelationships"   , (  0,   0, util.IndexRowset    , Row          , "relationshipID"    , const.cacheCertificateRelationships)),
+		("certificates"               , (  0, 391, util.IndexRowset    , Certificate       , "certificateID"     , const.cacheCertificates)),
+		("certificaterelationships"   , (  0, 391, util.IndexRowset    , Row               , "relationshipID"    , const.cacheCertificateRelationships)),
 
 		("schematics"                 , (242,   0, util.IndexRowset    , Schematic         , 'schematicID'       , const.cachePlanetSchematics)),
-		("ramtyperequirements"        , (242,   0, dict                , None          , ('typeID', 'activityID'), const.cacheRamTypeRequirements)),
+		("ramtyperequirements"        , (242,   0, dict                , None              , ('typeID', 'activityID'), const.cacheRamTypeRequirements)),
 		("invtypematerials"           , (254,   0, dict                , None              , 'typeID'            , const.cacheInvTypeMaterials)),
 
 		# location/owner stuff.
-		("factions"                   , (276,   0, util.IndexRowset    , Row          , "factionID"         , const.cacheChrFactions)),
-		("npccorporations"            , (276,   0, util.IndexRowset    , Row          , "corporationID"     , const.cacheCrpNpcCorporations)),
+		("factions"                   , (276,   0, util.IndexRowset    , Row               , "factionID"         , const.cacheChrFactions)),
+		("npccorporations"            , (276,   0, util.IndexRowset    , Row               , "corporationID"     , const.cacheCrpNpcCorporations)),
 		("corptickernames"            , (  0,   0, util.IndexRowset    , CrpTickerNames    , "corporationID"     , const.cacheCrpTickerNamesStatic)),
 
-		("staoperationtypes"          , (299,   0, util.IndexRowset    , Row          , "operationID"       , const.cacheStaOperations)),
+		("staoperationtypes"          , (299,   0, util.IndexRowset    , Row               , "operationID"       , const.cacheStaOperations)),
 		("mapcelestialdescriptions"   , (276,   0, util.IndexRowset    , MapCelestialDescription, "itemID"       , const.cacheMapCelestialDescriptions)),
-		("locationwormholeclasses"    , (  0,   0, util.IndexRowset    , Row          , "locationID"        , const.cacheMapLocationWormholeClasses)),
+		("locationwormholeclasses"    , (  0,   0, util.IndexRowset    , Row               , "locationID"        , const.cacheMapLocationWormholeClasses)),
 
-		("regions"                    , (299,   0, util.IndexRowset    , Row          , "regionID"          , const.cacheMapRegionsTable)),
-		("constellations"             , (299,   0, util.IndexRowset    , Row          , "constellationID"   , const.cacheMapConstellationsTable)),
-		("solarsystems"               , (299,   0, util.IndexRowset    , Row          , "solarSystemID"     , const.cacheMapSolarSystemsTable)),
-		("stations"                   , (299,   0, util.IndexRowset    , Row          , "stationID"         , const.cacheStaStationsStatic)),
+		("regions"                    , (299,   0, util.IndexRowset    , Row               , "regionID"          , const.cacheMapRegionsTable)),
+		("constellations"             , (299,   0, util.IndexRowset    , Row               , "constellationID"   , const.cacheMapConstellationsTable)),
+		("solarsystems"               , (299,   0, util.IndexRowset    , Row               , "solarSystemID"     , const.cacheMapSolarSystemsTable)),
+		("stations"                   , (299,   0, util.IndexRowset    , Row               , "stationID"         , const.cacheStaStationsStatic)),
 
-		("nebulas"                    , (299,   0, util.IndexRowset    , Row          , "locationID"        , const.cacheMapNebulas)),
+		("nebulas"                    , (299,   0, util.IndexRowset    , Row               , "locationID"        , const.cacheMapNebulas)),
 
 		# autogenerated FilterRowsets from some of the above tables
 		("groupsByCategories"         , (  0,   0, "invgroups"         , None              , "categoryID"        , None)),
@@ -660,8 +655,9 @@ class Config(object):
 		("graphics"                   , (324,   0, ("graphicIDs"      , "graphicIDs"      , True)    , 100 )),
 		("sounds"                     , (332,   0, ("soundIDs"        , "soundIDs"        , True)    , 100 )),
 		("icons"                      , (332,   0, ("iconIDs"         , "iconIDs"         , True)    , 100 )),
-
 		("fsdDustIcons"               , (378,   0, ("dustIcons"       , None              , None )   , None)),
+
+		("certificates"               , (391,   0, ("certificates"    , "certificates"    , False)   , None)),
 	)
 
 
@@ -920,11 +916,19 @@ class Config(object):
 		self.localdb.row_factory = sqlite3.Row
 
 
-		# look for fsd library in EVE install
+		use_ccp_code = False
+		# DEPRECATED: look for fsd library in EVE install
 		for fsdlib in glob.glob(os.path.join(self.cache.root, "lib", "fsdSchemas-*.zip")):
 			# add zip library to module search path
 			sys.path.append(fsdlib)
-
+			use_ccp_code = True
+			break
+		else:
+			if os.path.exists(os.path.join(self.cache.root, "lib", "fsdCommon")):
+				sys.path.append(os.path.join(self.cache.root, "lib"))
+				use_ccp_code = True
+		
+		if use_ccp_code:
 			# needed to make logger work, and shut it up
 			logging.basicConfig()
 			self._logger = logging.getLogger("fsdSchemas")
@@ -935,15 +939,9 @@ class Config(object):
 			self._fsdBinaryLoader = fsdBinaryLoader
 
 			# All set to use EVE's FSD code directly.
-			# Yep, now we're basically gambling on that code to be compatible
-			# with whatever other EVE installs are accessed with this process.
-			# (This is obviously only an issue if you are using this process
-			# to access multiple EVE installs)
-
-			self.useCCPlibs = True
-			break
-		else:
-			self.useCCPlibs = False
+			# (patch the instance to use the alternative loader)
+			self._loadfsddata = self._loadfsddata_usingccplib
+		
 
 
 	def release(self):
@@ -959,27 +957,53 @@ class Config(object):
 		self._attrCache = {}
 
 
-	def _loadfsddata(self, tableName, resName, cacheNum, optimize):
+	def _loadfsddata_usingccplib(self, staticName, schemaName, cacheNum, optimize):
+		# odyssey fsd loader (uses CCP code directly)
+		# deprecated in ody1.1, but still works if fsd lib is present
+		from . import blue as bloo
+
+		# must patch our ResFile temporarily for CCP code to work.
+		_rf = bloo.ResFile
+		bloo.ResFile = self._eve.ResFile
+
+		try:
+			if optimize is None:
+				optimize = True
+			staticName = 'res:/staticdata/%s.static' % staticName
+			schemaName = 'res:/staticdata/%s.schema' % schemaName if schemaName else None
+			return self._fsdBinaryLoader.LoadFSDDataForCFG(staticName, schemaName, optimize=optimize)
+		finally:
+			bloo.ResFile = _rf
+
+
+	def _loadfsddata(self, staticName, schemaName, cacheNum, optimize):
 		# Custom FileStaticData loader.
 		# Grabs schema and binary blob from .stuff file.
 		res = self._eve.ResFile()
-		resFileName = "res:/staticdata/%s.schema" % resName
 
-		if res.Open(resFileName):
-			schema = fsd.LoadSchema(res.Read())
-			if optimize:
-				schema = fsd.OptimizeSchema(schema)
-		else:
-			schema = None
+		schema = None
+		if staticName:
+			resFileName = "res:/staticdata/%s.schema" % schemaName
+			if res.Open(resFileName):
+				schema = fsd.LoadSchema(res.Read())
+				if optimize:
+					schema = fsd.OptimizeSchema(schema)
 
-		resFileName = "res:/staticdata/%s.static" % resName
+		resFileName = "res:/staticdata/%s.static" % staticName
 		if not res.Open(resFileName):
 			raise RuntimeError("Could not load FSD static data '%s'" % resFileName)
 
-		if schema is None:
+		try:
+			# This will throw an error if there is no embedded schema.
+			# As it is hardcoded in EVE whether a static data file comes
+			# with an embedded schema, we just try to load it anyway.
+			# if it fails, the previously loaded schema should still be there.
 			schema, offset = fsd.LoadEmbeddedSchema(res.fh)
-		else:
-			offset = 0
+		except RuntimeError:
+			pass
+
+		if schema is None:
+			raise RuntimeError("No schema found for %s" % tableName)
 
 		fsd.PrepareSchema(schema)
 

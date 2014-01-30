@@ -104,13 +104,14 @@ class Localization(object):
 		else:
 			self.fallback = None
 
+		self.languageLabels = {}
+
 		# load labels
 		for efs, resname in (
 			(stuff, "res/localization/localization_main.pickle"),
 			(stuffFSD, "res/localizationFSD/localization_fsd_main.pickle"),
 		):
-			unPickledObject = cPickle.loads(efs.open(resname).read())
-			self.languageLabels = {}
+			unPickledObject = cPickle.load(efs.open(resname))
 			for messageID, dataRow in unPickledObject['labels'].iteritems():
 				fp = dataRow['FullPath']
 				label = fp + '/' + dataRow['label'] if fp else dataRow['label']

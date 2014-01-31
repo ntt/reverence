@@ -55,13 +55,6 @@ keymapiter_dealloc(PyKeyMapIteratorObject *self)
 #define ITERVALUES_NS 3
 #define ITERITEMS_NS 4
 
-#define FSIGNED 8
-#define SITERKEYS (ITERKEYS| FSIGNED)
-#define SITERVALUES (ITERVALUES| FSIGNED)
-#define SITERITEMS (ITERITEMS| FSIGNED)
-#define SITERVALUES_NS (ITERVALUES_NS| FSIGNED)
-#define SITERITEMS_NS (ITERITEMS_NS| FSIGNED)
-
 PyObject *
 keymapiter_next(PyKeyMapIteratorObject *self)
 {
@@ -74,22 +67,13 @@ keymapiter_next(PyKeyMapIteratorObject *self)
 	entry = (keymap_entry *)&(((char *)self->kmi_keymap->km_map->entry)[self->kmi_keymap->km_entrysize * self->kmi_index++]);
 	size = (self->kmi_keymap->km_entrysize == 12) ? entry->size : 0;
 
-	switch(self->kmi_mode | self->kmi_keymap->km_signed)
+	switch(self->kmi_mode)
 	{
-		case SITERKEYS     : return PyLong_FromLong(entry->key);
-		case ITERKEYS      : return PyLong_FromUnsignedLong(entry->key);
-
-		case SITERVALUES   : // fallthrough
-		case ITERVALUES    : return Py_BuildValue("ii", entry->offset, size);
-
-		case SITERITEMS    : return Py_BuildValue("i(ii)", entry->key, entry->offset, size);
-		case ITERITEMS     : return Py_BuildValue("I(ii)", entry->key, entry->offset, size);
-
-		case SITERVALUES_NS: // fallthrough
-		case ITERVALUES_NS : return PyLong_FromUnsignedLong(entry->offset);
-
-		case SITERITEMS_NS : // fallthrough
-		case ITERITEMS_NS  : return Py_BuildValue("ii", entry->key, entry->offset);
+		case ITERKEYS     : return (self->kmi_keymap->km_signed ? PyLong_FromLong : PyLong_FromUnsignedLong)(entry->key);
+		case ITERVALUES   : return Py_BuildValue("ii", entry->offset, size);
+		case ITERITEMS    : return Py_BuildValue((self->kmi_keymap->km_signed ? "i(ii)" : "I(ii)"), entry->key, entry->offset, size);
+		case ITERVALUES_NS: return PyLong_FromLong(entry->offset);
+		case ITERITEMS_NS : return Py_BuildValue("ii", entry->key, entry->offset);
 
 		default:
 			PyErr_Format(PyExc_RuntimeError, "Invalid mode for KeyMapIterator: %d", self->kmi_mode);
@@ -174,7 +158,7 @@ keymap_initialize(PyKeyMapObject *self, PyObject *args)
 		return NULL;
 	}
 
-	self->km_signed = issigned ? FSIGNED : 0;
+	self->km_signed = !!issigned;
 	self->km_entrysize = hassize ? 12 : 8;
 	self->km_map = (keymap *)&data[offset];
 	size -= (offset+4);
@@ -241,10 +225,7 @@ _internal_get(PyKeyMapObject *self, PyObject *key, int raise)
 
 	size = (self->km_entrysize == 12) ? entry->size : 0;
 
-	if(self->km_signed)
-		return Py_BuildValue("ii", entry->offset, size);
-	else
-		return Py_BuildValue("II", entry->offset, size);
+	return Py_BuildValue("ii", entry->offset, size);
 }
 
 static PyObject *

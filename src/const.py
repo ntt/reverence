@@ -366,6 +366,7 @@ groupDestructibleAgentsInSpace = 715
 groupDestructibleSentryGun = 383
 groupDestructibleStationServices = 874
 groupDreadnought = 485
+groupDroneTrackingModules = 646
 groupElectronicCounterCounterMeasures = 202
 groupElectronicCounterMeasureBurst = 80
 groupElectronicCounterMeasures = 201
@@ -1058,6 +1059,71 @@ miniContainerTypes = (
 	typeMiniContainer5,
 )
 
+
+shipPackagedVolumesPerGroup = {
+ groupAssaultShip: 2500.0,
+ groupAttackBattlecruiser: 15000.0,
+ groupBattlecruiser: 15000.0,
+ groupBattleship: 50000.0,
+ groupBlackOps: 50000.0,
+ groupBlockadeRunner: 20000.0,
+ groupCapitalIndustrialShip: 1000000.0,
+ groupCapsule: 500.0,
+ groupCarrier: 1000000.0,
+ groupCombatReconShip: 10000.0,
+ groupCommandShip: 15000.0,
+ groupCovertOps: 2500.0,
+ groupCruiser: 10000.0,
+ groupDestroyer: 5000.0,
+ groupDreadnought: 1000000.0,
+ groupElectronicAttackShips: 2500.0,
+ groupEliteBattleship: 50000.0,
+ groupExhumer: 3750.0,
+ groupForceReconShip: 10000.0,
+ groupFreighter: 1000000.0,
+ groupFrigate: 2500.0,
+ groupHeavyAssaultShip: 10000.0,
+ groupHeavyInterdictors: 10000.0,
+ groupIndustrial: 20000.0,
+ groupIndustrialCommandShip: 500000.0,
+ groupInterceptor: 2500.0,
+ groupInterdictor: 5000.0,
+ groupJumpFreighter: 1000000.0,
+ groupLogistics: 10000.0,
+ groupMarauders: 50000.0,
+ groupMiningBarge: 3750.0,
+ groupSupercarrier: 1000000.0,
+ groupPrototypeExplorationShip: 500.0,
+ groupRookieship: 2500.0,
+ groupShuttle: 500.0,
+ groupStealthBomber: 2500.0,
+ groupStrategicCruiser: 5000,
+ groupTitan: 10000000.0,
+ groupTransportShip: 20000.0
+}
+
+containerPackagedVolumesPerType = {
+ typeGiantSecureContainer: 300,
+ typeHugeSecureContainer: 150,
+ typeLargeSecureContainer: 65,
+ typeMediumSecureContainer: 33,
+ typeSmallSecureContainer: 10,
+ typeLargeAuditLogSecureContainer: 65,
+ typeMediumAuditLogSecureContainer: 33,
+ typeSmallAuditLogSecureContainer: 10,
+ typeEnormousFreightContainer: 2500,
+ typeGiantFreightContainer: 1200,
+ typeHugeFreightContainer: 5000,
+ typeLargeFreightContainer: 1000,
+ typeMediumFreightContainer: 500,
+ typeSmallFreightContainer: 100,
+ typeLargeStandardContainer: 65,
+ typeMediumStandardContainer: 33,
+ typeSmallStandardContainer: 10,
+ typeStationContainer: 10000,
+ typeStationVault: 50000,
+ typeStationWarehouse: 100000
+}
 
 accountingKeyCash = 1000
 accountingKeyCash2 = 1001

@@ -26,6 +26,7 @@ typedef struct {
 	PyObject *km_ref;   // safety ref to string object containing keymap blob
     keymap *km_map;  // pointer to keymap
 	int km_entrysize;
+	int km_signed;  // signed keys anyway? (8 or 0)
 } PyKeyMapObject;
 
 typedef struct {

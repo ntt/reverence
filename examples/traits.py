@@ -9,6 +9,8 @@
 
 # Note: this code uses cfg._localization - this internal attr is subject to change without notice.
 
+EVEROOT = "G:/EVE"  # change me.
+
 import re
 from reverence import blue
 
@@ -16,6 +18,7 @@ tags = re.compile("\<.+?\>")
 
 ROLE_BONUS_TYPE = -1
 MISC_BONUS_TYPE = -2
+
 
 def striptags(text):
 	return tags.sub("", text)
@@ -40,11 +43,11 @@ def printtraits(typeID):
 	if hasattr(fsdType, 'infoBubbleTypeBonuses'):
 		typeBonuses = fsdType.infoBubbleTypeBonuses
 		for skillTypeID, skillData in typeBonuses.iteritems():
-			if not skillTypeID:
+			if skillTypeID <= 0:
 				continue
 
-		print cfg._localization.GetByLabel('UI/ShipTree/SkillNameCaption', skillName=cfg.invtypes.Get(skillTypeID).name)
-		printbonuses(skillData)
+			print cfg._localization.GetByLabel('UI/ShipTree/SkillNameCaption', skillName=cfg.invtypes.Get(skillTypeID).name)
+			printbonuses(skillData)
 
 		if ROLE_BONUS_TYPE in typeBonuses:
 			print cfg._localization.GetByLabel('UI/ShipTree/RoleBonus')
@@ -67,7 +70,7 @@ if __name__ == "__main__":
 
 	what = sys.argv[1]
 
-	eve = blue.EVE("G:/EVE", languageID="en-us")
+	eve = blue.EVE(EVEROOT, languageID="en-us")
 	cfg = eve.getconfigmgr()
 
 	typesByName = cfg.invtypes.IndexedBy("typeName")

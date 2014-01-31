@@ -23,24 +23,9 @@ import logging
 from . import _blue as blue
 from . import const, util
 from . import localization, fsd
-import reverence.carbon.common.script.sys.crowset as dbutil
-from reverence.carbon.common.script.sys.row import Row
-import reverence.eve.common.script.sys.rowset as util
 
-_get = Row.__getattr__
-
-def _localized(row, attr, messageID):
-	_cfg = (row.cfg or cfg)
-	if _cfg._languageID:
-		return _cfg._localization.GetByMessageID(messageID)
-	return _get(row, attr)
-
-def _localized_important(row, attr, messageID):
-	_cfg = (row.cfg or cfg)
-	if _cfg._languageID:
-		return _cfg._localization.GetImportantByMessageID(messageID)
-	return _get(row, attr)
-
+# custom row containers are imported from this
+from .eve.common.script.sys.eveCfg import *
 
 _OWNER_AURA_IDENTIFIER = -1
 _OWNER_SYSTEM_IDENTIFIER = -2
@@ -62,321 +47,6 @@ _solarSystemObjectRowDescriptor = blue.DBRowDescriptor((
 	('y', const.DBTYPE_R8),
 	('z', const.DBTYPE_R8),
 ))
-
-
-class Billtype(Row):
-	__guid__ = 'cfg.Billtype'
-
-	def __getattr__(self, name):
-		value = _get(self, name)
-#		if name == 'billTypeName':
-#			value = Tr(value, 'dbo.actBillTypes.billTypeName', self.billTypeID)
-		return value
-
-	def __str__(self):
-		return 'Billtype ID: %d' % self.billTypeID
-
-
-class InvType(Row):
-	__guid__ = "sys.InvType"
-
-	def __getattr__(self, attr):
-		if attr in ("name", "typeName"):
-			return _localized_important(self, "typeName", self.typeNameID)
-		if attr == 'categoryID':
-			return (self.cfg or cfg).invgroups.Get(self.groupID).categoryID
-		if attr == "description":
-			return _localized(self, "description", self.descriptionID)
-
-		# check overrides
-		if attr in ('graphicID', 'soundID', 'iconID', 'radius'):
-			try:
-				fsd = (self.cfg or cfg).fsdTypeOverrides
-				return getattr(fsd.Get(self.typeID), attr)
-			except (AttributeError, KeyError):
-				pass
-
-		return _get(self, attr)
-
-	def Group(self):
-		return (self.cfg or cfg).invgroups.Get(self.groupID)
-
-	def GetRawName(self, languageID):
-		return (self.cfg or cfg)._localization.GetByMessageID(self.typeNameID, languageID)
-
-	def Icon(self):
-		if self.typeID >= const.minDustTypeID:
-			return (self.cfg or cfg).fsdDustIcons.get(self.typeID, None)
-		elif self.iconID is not None:
-			return (self.cfg or cfg).icons.GetIfExists(self.iconID)
-		return
-
-	def IconFile(self):
-		return getattr((self.cfg or cfg).icons.Get(self.iconID), "iconFile", "")
-
-	def Graphic(self):
-		gid = self.graphicID
-		if gid is not None:
-			return (self.cfg or cfg).graphics.Get(gid)
-		return None
-
-	def GraphicFile(self):
-		return getattr((self.cfg or cfg).Graphic(), "graphicFile", "")
-
-	def Sound(self):
-		sid = self.soundID
-		if sid is not None:
-			print (self.cfg or cfg).sounds.keys()
-			return (self.cfg or cfg).sounds.GetIfExists(sid)
-
-
-
-	# ---- custom additions ----
-
-	def GetRequiredSkills(self):
-		return (self.cfg or cfg).GetRequiredSkills(self.typeID)
-
-	def GetTypeAttrDict(self):
-		return (self.cfg or cfg).GetTypeAttrDict(self.typeID)
-
-	def GetTypeAttribute(self, attributeID, defaultValue=None):
-		return (self.cfg or cfg).GetTypeAttribute(self.typeID, attributeID, defaultValue)
-
-	def GetTypeAttribute2(self, attributeID):
-		return (self.cfg or cfg).GetTypeAttribute2(self.typeID, attributeID)
-
-
-class InvGroup(Row):
-	__guid__ = "sys.InvGroup"
-
-	def Category(self):
-		return (self.cfg or cfg).invcategories.Get(self.categoryID)
-
-	def __getattr__(self, attr):
-		if attr in ("name", "groupName", "description"):
-			return _localized(self, "groupName", self.groupNameID)
-		if attr == "id":
-			return _get(self, "groupID")
-		return _get(self, attr)
-
-
-class InvCategory(Row):
-	__guid__ = "sys.InvCategory"
-
-	def __getattr__(self, attr):
-		if attr in ("name", "categoryName", "description"):
-			return _localized(self, "categoryName", self.categoryNameID)
-		if attr == "id":
-			return _get(self, "categoryID")
-		return _get(self, attr)
-
-	def IsHardware(self):
-		return self.categoryID == const.categoryModule
-
-
-class InvMetaGroup(Row):
-	__guid__ = "cfg.InvMetaGroup"
-
-	def __getattr__(self, name):
-		if name == "_metaGroupName":
-			return _get(self, "metaGroupName")
-
-		if name == "name":
-			name = "metaGroupName"
-
-		return _get(self, name)
-
-
-class DgmAttribute(Row):
-	__guid__ = "cfg.DgmAttribute"
-
-	def __getattr__(self, name):
-		if name == 'displayName':
-			return _localized(self, "displayName", self.displayNameID)
-		return _get(self, name)
-
-
-class DgmEffect(Row):
-	__guid__ = "cfg.DgmEffect"
-
-	def __getattr__(self, name):
-		if name == "displayName":
-			return _localized(self, "displayName", self.displayNameID)
-		if name == "description":
-			return _localized(self, "description", self.descriptionID)
-		return _get(self, name)
-
-
-class DgmUnit(Row):
-	__guid__ = 'cfg.DgmUnit'
-
-	def __getattr__(self, name):
-		if name == 'displayName':
-			return _localized(self, "displayName", self.displayNameID)
-		if name == 'description':
-			return _localized(self, "description", self.descriptionID)
-		return _get(self, name)
-
-
-class EveOwners(Row):
-	__guid__ = "cfg.EveOwners"
-
-	def __getattr__(self, name):
-		if name in ("name", "description", "ownerName"):
-			return _get(self, "ownerName")
-		if name == "groupID":
-			return self.cfg.invtypes.Get(self.typeID).groupID
-		return _get(self, name)
-
-	def GetRawName(self, languageID):
-		if self.ownerNameID:
-			if self.ownerNameID in _OWNER_NAME_OVERRIDES:
-				return (self.cfg or cfg)._localization.GetByLabel(_OWNER_NAME_OVERRIDES[self.ownerNameID], languageID)
-			return (self.cfg or cfg)._localization.GetByMessageID(self.ownerNameID, languageID)
-		return self.name
-
-	def __str__(self):
-		return 'EveOwner ID: %d, "%s"' % (self.ownerID, self.ownerName)
-
-	def Type(self):
-		return self.cfg.invtypes.Get(self.typeID)
-
-	def Group(self):
-		return self.cfg.invgroups.Get(self.groupID)
-
-
-class EveLocations(Row):
-	__guid__ = "dbrow.Location"
-
-	def __getattr__(self, name):
-		if name in ("name", "description", "locationName"):
-			locationName = _get(self, 'locationName')
-			_cfg = (self.cfg or cfg)
-			if _cfg._languageID:
-				if (not locationName) and self.locationNameID is not None:
-					if isinstance(self.locationNameID, (int, long)):
-						locationName = _cfg._localization.GetByMessageID(self.locationNameID)
-					elif isinstance(self.locationNameID, tuple):
-						locationName = _cfg._localization.GetByLabel(self.locationNameID[0], **self.locationNameID[1])
-					setattr(self, 'locationName', locationName)
-			return locationName
-
-		return _get(self, name)
-
-	def __str__(self):
-		return 'EveLocation ID: %d, "%s"' % (self.locationID, self.locationName)
-
-	def GetRawName(self, languageID):
-		if self.locationNameID:
-			return (self.cfg or cfg)._localization.GetByMessageID(self.locationNameID, languageID)
-#		if self.locationID in cfg.rawCelestialCache:
-#			(lbl, kwargs,) = cfg.rawCelestialCache[self.locationID]
-#			return self.cfg._localization.GetByLabel(lbl, languageID, **kwargs)
-		return _get(self, name)
-
-#	def Station(self):
-#		return self.cfg.GetSvc("stationSvc").GetStation(self.id)
-
-
-class RamCompletedStatus(Row):
-	def __getattr__(self, name):
-		if name in ("name", "completedStatusName"):
-			return _localized(self, "completedStatusName", self.completedStatusTextID)
-		if name == "description":
-			return _localized(self, "description", self.descriptionID)
-		return _get(self, name)
-
-	def __str__(self):
-		try:
-			return 'RamCompletedStatus ID: %d, "%s"' % (self.completedStatus, self.completedStatusName)
-		except:
-			sys.exc_clear()
-			return "RamCompletedStatus containing crappy data"
-
-
-class RamActivity(Row):
-	def __getattr__(self, name):
-		if name in ("name", "activityName"):
-			return _localized(self, "activityName", self.activityNameID)
-		if name == "description":
-			return _localized(self, "description", self.descriptionID)
-		return _get(self, name)
-
-	def __str__(self):
-		try:
-			return 'RamActivity ID: %d, "%s"' % (self.activityID, self.activityName)
-		except:
-			sys.exc_clear()
-			return "RamActivity containing crappy data"
-
-
-class RamDetail(Row):
-	def __getattr__(self, name):
-   		if name == "activityID":
-			return self.cfg.ramaltypes.Get(self.assemblyLineTypeID).activityID
-   		return _get(self, name)
-
-
-class MapCelestialDescription(Row):
-	def __getattr__(self, name):
-		if name == "description":
-			return _localized(self, "description", self.descriptionID)
-		return _get(self, name)
-
-	def __str__(self):
-		return "MapCelestialDescriptions ID: %d" % (self.itemID)
-
-
-class CrpTickerNames(Row):
-	def __getattr__(self, name):
-		if name in ("name", "description"):
-			return _get(self, "tickerName")
-		return _get(self, name)
-
-	def __str__(self):
-		return "CorpTicker ID: %d, \"%s\"" % (self.corporationID, self.tickerName)
-
-
-class AllShortNames(Row):
-	__guid__ = 'cfg.AllShortNames'
-
-	def __getattr__(self, name):
-		if name in ("name", "description"):
-			return _get(self, "shortName")
-		return _get(self, name)
-
-	def __str__(self):
-		return "AllianceShortName ID: %d, \"%s\"" % (self.allianceID, self.shortName)
-
-
-class Certificate(Row):
-	__guid__ = 'cfg.Schematic'
-
-	def __getattr__(self, name):
-		if name == "description":
-			return _localized(self, "description", self.descriptionID)
-		return _get(self, name)
-
-	def __str__(self):
-		return "Certificate ID: %d" % (self.certificateID)
-
-
-class Schematic(Row):
-	__guid__ = 'cfg.Schematic'
-
-	def __getattr__(self, name):
-		if name == "schematicName":
-			return _localized(self, "schematicName", self.schematicNameID)
-		return _get(self, name)
-
-	def __str__(self):
-		return 'Schematic: %s (%d)' % (self.schematicName, self.schematicID)
-
-	def __cmp__(self, other):
-		if type(other) is int:
-			return int.__cmp__(self.schematicID, other)
-		else:
-			return Row.__cmp__(self, other)
 
 
 # Warning: Code below may accidentally your whole brain.
@@ -499,73 +169,9 @@ class Config(object):
 		const.groupFueledShieldBooster,
 		const.groupFueledArmorRepairer,
 		const.groupSurveyProbeLauncher,
-		const.groupMissileLauncherRapidHeavy
+		const.groupMissileLauncherRapidHeavy,
+		const.groupDroneTrackingModules,
 	)
-
-	__shipPackagedVolumesPerGroup__ = {
-		const.groupAssaultShip: 2500.0,
-		const.groupAttackBattlecruiser: 15000.0,
-		const.groupBattlecruiser: 15000.0,
-		const.groupBattleship: 50000.0,
-		const.groupBlackOps: 50000.0,
-		const.groupBlockadeRunner: 20000.0,
-		const.groupCapitalIndustrialShip: 1000000.0,
-		const.groupCapsule: 500.0,
-		const.groupCarrier: 1000000.0,
-		const.groupCombatReconShip: 10000.0,
-		const.groupCommandShip: 15000.0,
-		const.groupCovertOps: 2500.0,
-		const.groupCruiser: 10000.0,
-		const.groupDestroyer: 5000.0,
-		const.groupDreadnought: 1000000.0,
-		const.groupElectronicAttackShips: 2500.0,
-		const.groupEliteBattleship: 50000.0,
-		const.groupExhumer: 3750.0,
-		const.groupForceReconShip: 10000.0,
-		const.groupFreighter: 1000000.0,
-		const.groupFrigate: 2500.0,
-		const.groupHeavyAssaultShip: 10000.0,
-		const.groupHeavyInterdictors: 10000.0,
-		const.groupIndustrial: 20000.0,
-		const.groupIndustrialCommandShip: 500000.0,
-		const.groupInterceptor: 2500.0,
-		const.groupInterdictor: 5000.0,
-		const.groupJumpFreighter: 1000000.0,
-		const.groupLogistics: 10000.0,
-		const.groupMarauders: 50000.0,
-		const.groupMiningBarge: 3750.0,
-		const.groupSupercarrier: 1000000.0,
-		const.groupPrototypeExplorationShip: 500.0,
-		const.groupRookieship: 2500.0,
-		const.groupShuttle: 500.0,
-		const.groupStealthBomber: 2500.0,
-		const.groupStrategicCruiser: 5000,
-		const.groupTitan: 10000000.0,
-		const.groupTransportShip: 20000.0
-	}
-
-	__containerPackagedVolumesPerType__ = {
-		const.typeSmallStandardContainer: 10,
-		const.typeSmallSecureContainer: 10,
-		const.typeSmallAuditLogSecureContainer: 10,
-		const.typeMediumStandardContainer: 33,
-		const.typeMediumSecureContainer: 33,
-		const.typeMediumAuditLogSecureContainer: 33,
-		const.typeLargeStandardContainer: 65,
-		const.typeLargeSecureContainer: 65,
-		const.typeLargeAuditLogSecureContainer: 65,
-		const.typeHugeSecureContainer: 150,
-		const.typeGiantSecureContainer: 300,
-		const.typeSmallFreightContainer: 100,
-		const.typeMediumFreightContainer: 500,
-		const.typeLargeFreightContainer: 1000,
-		const.typeGiantFreightContainer: 1200,
-		const.typeEnormousFreightContainer: 2500,
-		const.typeHugeFreightContainer: 5000,
-		const.typeStationContainer: 10000,
-		const.typeStationVault: 50000,
-		const.typeStationWarehouse: 100000
-	}
 
 
 	#-------------------------------------------------------------------------------------------------------------------
@@ -889,6 +495,10 @@ class Config(object):
 			raise RuntimeError("Cerberus started without languageID set")
 		return localization.Localization(self.cache.root, self._languageID, cfgInstance=self)
 
+	@_memoize
+	def _averageMarketPrice(self):
+		return self._eve.RemoteSvc("config").GetAverageMarketPricesForClient()
+
 	#--
 
 	def __init__(self, cache, languageID=None):
@@ -916,33 +526,27 @@ class Config(object):
 		self.localdb.row_factory = sqlite3.Row
 
 
-		use_ccp_code = False
 		# DEPRECATED: look for fsd library in EVE install
-		for fsdlib in glob.glob(os.path.join(self.cache.root, "lib", "fsdSchemas-*.zip")):
-			# add zip library to module search path
-			sys.path.append(fsdlib)
-			use_ccp_code = True
+		ccplibpath = os.path.join(self.cache.root, "lib")
+
+		for fsdlib in glob.glob(os.path.join(ccplibpath, "fsdSchemas-*.zip")):
 			break
 		else:
-			if os.path.exists(os.path.join(self.cache.root, "lib", "fsdCommon")):
-				sys.path.append(os.path.join(self.cache.root, "lib"))
-				use_ccp_code = True
+			fsdlib = ccplibpath if os.path.exists(os.path.join(ccplibpath, "fsdCommon")) else None
 		
-		if use_ccp_code:
-			# needed to make logger work, and shut it up
-			logging.basicConfig()
-			self._logger = logging.getLogger("fsdSchemas")
-			self._logger.setLevel(-1)
+		if fsdlib:
+			sys.path.append(fsdlib)
 
 			# import the important function!
 			import fsdSchemas.binaryLoader as fsdBinaryLoader
 			self._fsdBinaryLoader = fsdBinaryLoader
 
+			fsdBinaryLoader.log.setLevel(-1)  # shut logging up
+
 			# All set to use EVE's FSD code directly.
 			# (patch the instance to use the alternative loader)
 			self._loadfsddata = self._loadfsddata_usingccplib
 		
-
 
 	def release(self):
 		# purge all loaded tables
@@ -952,6 +556,8 @@ class Config(object):
 				delattr(self, tableName)
 			except AttributeError:
 				pass
+
+		delattr(self, "_averageMarketPrice")
 
 		self.cache._time_load = 0.0
 		self._attrCache = {}
@@ -1040,12 +646,12 @@ class Config(object):
 			rs = {}
 			if type(primaryKey) is tuple:
 				# composite key
-				getkey = lambda row: tuple(map(row.__getitem__, primaryKey))
+				getkey = lambda r, k: tuple(map(r.__getitem__, k))
 			else:
-				getkey = lambda row: getattr(row, primaryKey)
+				getkey = getattr
 
 			for row in obj:
-				key = getkey(row)
+				key = getkey(row, primaryKey)
 				li = rs.get(key)
 				if li is None:
 					rs[key] = [row]
@@ -1117,10 +723,9 @@ which will be called as func(current, total, tableName).
 			raise RuntimeError("GetTypeVolume: cannot determine volume of plastic from type alone")
 
 		rec = cfg.invtypes.Get(typeID)
-		if rec.Group().categoryID == const.categoryShip and not singleton and rec.groupID in self.__containerVolumes__ and typeID != const.typeBHMegaCargoShip:
-			volume = self.__containerVolumes__[rec.groupID]
-		else:
-			volume = rec.volume
+		volume = rec.volume
+		if not singleton and typeID != const.typeBHMegaCargoShip:
+			volume = const.shipPackagedVolumesPerGroup.get(rec.groupID, volume)
 
 		if volume != -1:
 			return volume * qty

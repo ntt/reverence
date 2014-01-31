@@ -164,29 +164,16 @@ class Rowset:
 					yield [line[x] for x in i]
 
 
-	def Sort(self, column, asc=1):
-		"""Provided for compatibility. do not use in new code."""
-		return self.SortedBy(column, not asc)
-
-	def Index(self, column):
-		"""Provided for compatibility. do not use in new code."""
-		return self.IndexedBy(column)
-
-	def Filter(self, column):
-		"""Provided for compatibility. do not use in new code."""
-		return self.GroupedBy(column)
-
-
-
 class IndexRowset(Rowset):
 	__guid__ = "util.IndexRowset"
 
 	def __init__(self, header=None, lines=None, key=None, RowClass=Row, dict=None, cfgInstance=None, fetcher=None):
 		if not key:
 			raise ValueError, "Crap key"
-		ki = header.index(key)
 
 		Rowset.__init__(self, header, lines, RowClass, cfgInstance=cfgInstance)
+
+		ki = header.index(key)
 		if dict is None:
 			self.items = d = {}
 			self.key = ki

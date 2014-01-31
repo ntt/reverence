@@ -1,7 +1,7 @@
 """
 FileStaticData decoder stuff
 
-Copyright (c) 2003-2013 Jamie "Entity" van den Berge <jamie@hlekkir.com
+Copyright (c) 2003-2014 Jamie "Entity" van den Berge <jamie@hlekkir.com
 
 This code is free software; you can redistribute it and/or modify
 it under the terms of the BSD license (see the file LICENSE.txt
@@ -399,15 +399,11 @@ class FSD_Dict(object):
 		self.offset = offset + 4
 		endOfFooter = offset + _uint32(data, offset)
 		footerOffset = endOfFooter - _uint32(data, endOfFooter)
-
-		try:
-			hassize = 'size' in schema['keyFooter']['itemTypes']['attributes']
-		except KeyError:
-			hassize = True
-
+		self.schema = schema
 		if schema['keyTypes']['type'] in 'int':
+			hassize = ('size' in schema['keyFooter']['itemTypes']['attributes']) if ('keyFooter' in schema) else True
 			self.footer = pyFSD.FsdUnsignedIntegerKeyMap()
-			self.footer.Initialize(data, footerOffset, hassize)
+			self.footer.Initialize(data, footerOffset, hassize, True)
 		else:
 			self.footer = _DictFooter(data, footerOffset, schema['keyFooter'])
 		self.valueSchema = schema['valueTypes']
@@ -557,10 +553,7 @@ class FSD_Index(object):
 	__iter__ = iterkeys
 
 
-_vectorunpackers = []
-for i in xrange(32):
-	_vectorunpackers.append(struct.Struct("I"*i).unpack_from)
-
+_vectorunpackers = [struct.Struct("I"*i).unpack_from for i in xrange(32)]
 
 class FSD_Object(object):
 
@@ -649,10 +642,7 @@ class FSD_Object(object):
 		for attr, schema in header.iteritems():
 			offset = _getoffset(attr)
 			if offset is None:
-				if 'default' in schema:
-					v = schema['default']
-				else:
-					v = "NULL"
+				v = schema.get("default", "NULL")
 			else:
 				v = schema['loader'](self.__data__, self.__offset__ + offset, schema)
 			stuff.append(v)

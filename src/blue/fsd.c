@@ -420,6 +420,50 @@ fail:
 	return NULL;
 }
 
+// offset table generator for FSD_Object instances
+PyObject *
+fsd_make_offsets_table(PyObject *self, PyObject *args)
+{
+	char *data;
+	int size, data_offset, relative_offset;
+	int num;
+	int i;
+
+	PyObject *names;
+	PyObject *result, *v;
+
+	if(!PyArg_ParseTuple(args, "Os#ii:_fsd_make_offsets_table", &names, &data, &size, &data_offset, &relative_offset))
+		return NULL;
+
+	if(!(result = PyDict_New()))
+		return NULL;
+
+	names = PySequence_Fast(names, "Expected sequence of attribute names");
+	num = PySequence_Size(names);
+
+	data += (data_offset + relative_offset);
+	relative_offset += (4*num);
+
+	if (PyList_Check(names))
+	{
+		for(i=0; i<num; i++)
+		{
+			PyDict_SetItem(result, PyList_GET_ITEM(names, i), v = PyInt_FromLong(relative_offset + ((int32_t *)data)[i]));
+			Py_DECREF(v);
+		}
+	}
+	else
+	{
+		for(i=0; i<num; i++)
+		{
+			PyDict_SetItem(result, PyTuple_GET_ITEM(names, i),  v = PyInt_FromLong(relative_offset + ((int32_t *)data)[i]));
+			Py_DECREF(v);
+		}
+	}
+	Py_DECREF(names);
+
+	return result;
+}
 
 //----------------------------------------------------------------------------
 // _pyFSD module init
@@ -429,6 +473,7 @@ static struct PyMethodDef fsd_methods[] = {
 	{"_uint32_from", (PyCFunction)fsd_uint32_from, METH_VARARGS, NULL},
 	{"_int32_from", (PyCFunction)fsd_int32_from, METH_VARARGS, NULL},
 	{"_string_from", (PyCFunction)fsd_string_from, METH_VARARGS, NULL},
+	{"_make_offsets_table", (PyCFunction)fsd_make_offsets_table, METH_VARARGS, NULL},
 	{ NULL, NULL }
 };
 

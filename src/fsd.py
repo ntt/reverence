@@ -33,6 +33,7 @@ from reverence import _pyFSD
 _uint32 = _pyFSD._uint32_from
 _int32 = _pyFSD._int32_from
 _string = _pyFSD._string_from
+_make_offsets_table = _pyFSD._make_offsets_table
 
 _unpack_from = struct.unpack_from
 _float = struct.Struct("f").unpack_from
@@ -553,8 +554,6 @@ class FSD_Index(object):
 	__iter__ = iterkeys
 
 
-_vectorunpackers = [struct.Struct("I"*i).unpack_from for i in xrange(32)]
-
 class FSD_Object(object):
 
 	def __init__(self, data, offset, schema):
@@ -587,27 +586,12 @@ class FSD_Object(object):
 				# looks like there's just the required attributes.
 				_oa = schema['attributesWithVariableOffsets']
 
-			if _oa: 
-				_num = len(_oa)
-				_off = schema['endOfFixedSizeData'] + 4
-				if _num == 1:
-					_offsets = {
-						_oa[0]: _off + 4 + _uint32(data, offset + _off)
-					}
-				elif _num == 2:
-					_offsets = {
-						_oa[0]: _off + 8 + _uint32(data, offset + _off),
-						_oa[1]: _off + 8 + _uint32(data, offset + 4 + _off),
-					}
-				else:
-					_offsets = dict(zip(_oa, map((_off + 4*_num).__add__, _vectorunpackers[_num](data, offset + _off))))
-				#print "OFFSETS[%d] = %s" % (_num, _offsets)
-
+			if _oa:
+				_offsets = _make_offsets_table(_oa, data, offset, schema['endOfFixedSizeData'] + 4)
 				_offsets.update(schema['constantAttributeOffsets'])
 				self._get_offset = _offsets.get
 			else:
 				self._get_offset = schema['constantAttributeOffsets'].get
-
 
 
 	def __getitem__(self, key):

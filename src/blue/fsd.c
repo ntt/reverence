@@ -69,7 +69,12 @@ keymapiter_next(PyKeyMapIteratorObject *self)
 
 	switch(self->kmi_mode)
 	{
-		case ITERKEYS     : return (self->kmi_keymap->km_signed ? PyLong_FromLong : PyLong_FromUnsignedLong)(entry->key);
+		case ITERKEYS     :
+			if (self->kmi_keymap->km_signed)
+				return PyLong_FromLong(entry->key);
+			else
+				return PyLong_FromUnsignedLong(entry->key);
+
 		case ITERVALUES   : return Py_BuildValue("ii", entry->offset, size);
 		case ITERITEMS    : return Py_BuildValue((self->kmi_keymap->km_signed ? "i(ii)" : "I(ii)"), entry->key, entry->offset, size);
 		case ITERVALUES_NS: return PyLong_FromLong(entry->offset);

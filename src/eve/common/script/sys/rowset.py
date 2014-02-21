@@ -44,7 +44,7 @@ class RowDict(dict):
 		rows, self.columns, self.header = RowsInit(rowList, columns)
 
 		if key not in self.columns:
-			raise AttributeError('Indexing key not found in row')
+			raise AttributeError('Indexing key not found in columns')
 
 		self.key = key
 		for row in rows:
@@ -61,7 +61,7 @@ class RowDict(dict):
 
 		self.key = key
 		for row in vals:
-			self[row[self.key]] = row
+			self[row[key]] = row
 
 	def Add(self, row):
 

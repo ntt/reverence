@@ -17,17 +17,11 @@ _get = Row.__getattr__
 
 def _localized(row, attr, messageID):
 	_cfg = (row.cfg or cfg)
-	if _cfg._languageID:
-		return _cfg._localization.GetByMessageID(messageID)
-	return _get(row, attr)
+	return _cfg._localization.GetByMessageID(messageID)
 
 def _localized_important(row, attr, messageID):
 	_cfg = (row.cfg or cfg)
-	if _cfg._languageID:
-		return _cfg._localization.GetImportantByMessageID(messageID)
-	return _get(row, attr)
-
-
+	return _cfg._localization.GetImportantByMessageID(messageID)
 
 
 def Singleton(dbrow):
@@ -252,13 +246,12 @@ class EveLocations(Row):
 		if name in ("name", "description", "locationName"):
 			locationName = _get(self, 'locationName')
 			_cfg = (self.cfg or cfg)
-			if _cfg._languageID:
-				if (not locationName) and self.locationNameID is not None:
-					if isinstance(self.locationNameID, (int, long)):
-						locationName = _cfg._localization.GetByMessageID(self.locationNameID)
-					elif isinstance(self.locationNameID, tuple):
-						locationName = _cfg._localization.GetByLabel(self.locationNameID[0], **self.locationNameID[1])
-					setattr(self, 'locationName', locationName)
+			if (not locationName) and self.locationNameID is not None:
+				if isinstance(self.locationNameID, (int, long)):
+					locationName = _cfg._localization.GetByMessageID(self.locationNameID)
+				elif isinstance(self.locationNameID, tuple):
+					locationName = _cfg._localization.GetByLabel(self.locationNameID[0], **self.locationNameID[1])
+				setattr(self, 'locationName', locationName)
 			return locationName
 
 		return _get(self, name)

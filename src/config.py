@@ -212,8 +212,6 @@ class Config(object):
 		("ramaltypesdetailpergroup"   , (  0,   0, util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesGroup)),
 
 		("billtypes"                  , (  0,   0, util.IndexRowset    , Billtype          , 'billTypeID'        , const.cacheActBillTypes)),
-		("certificates"               , (  0, 391, util.IndexRowset    , Certificate       , "certificateID"     , const.cacheCertificates)),
-		("certificaterelationships"   , (  0, 391, util.IndexRowset    , Row               , "relationshipID"    , const.cacheCertificateRelationships)),
 
 		("schematics"                 , (242,   0, util.IndexRowset    , Schematic         , 'schematicID'       , const.cachePlanetSchematics)),
 		("ramtyperequirements"        , (242,   0, dict                , None              , ('typeID', 'activityID'), const.cacheRamTypeRequirements)),
@@ -228,9 +226,6 @@ class Config(object):
 		("mapcelestialdescriptions"   , (276,   0, util.IndexRowset    , MapCelestialDescription, "itemID"       , const.cacheMapCelestialDescriptions)),
 		("locationwormholeclasses"    , (  0,   0, util.IndexRowset    , Row               , "locationID"        , const.cacheMapLocationWormholeClasses)),
 
-		("regions"                    , (299,   0, util.IndexRowset    , Row               , "regionID"          , const.cacheMapRegionsTable)),
-		("constellations"             , (299,   0, util.IndexRowset    , Row               , "constellationID"   , const.cacheMapConstellationsTable)),
-		("solarsystems"               , (299,   0, util.IndexRowset    , Row               , "solarSystemID"     , const.cacheMapSolarSystemsTable)),
 		("stations"                   , (299,   0, util.IndexRowset    , Row               , "stationID"         , const.cacheStaStationsStatic)),
 
 		("nebulas"                    , (299,   0, util.IndexRowset    , Row               , "locationID"        , const.cacheMapNebulas)),
@@ -257,13 +252,23 @@ class Config(object):
 
 		("fsdTypeOverrides"           , (324,   0, ("typeIDs"         , "typeIDs"         , False)   , None)),
 
-		("fsdPlanetAttributes"        , (324,   0, ("planetAttributes", "planetAttributes", False)   , 100 )),
 		("graphics"                   , (324,   0, ("graphicIDs"      , "graphicIDs"      , True)    , 100 )),
 		("sounds"                     , (332,   0, ("soundIDs"        , "soundIDs"        , True)    , 100 )),
 		("icons"                      , (332,   0, ("iconIDs"         , "iconIDs"         , True)    , 100 )),
 		("fsdDustIcons"               , (378,   0, ("dustIcons"       , None              , None )   , None)),
 
 		("certificates"               , (391,   0, ("certificates"    , "certificates"    , False)   , None)),
+
+		("mapRegionCache"             , (393,   0, ("regions"         , "regions"         , False)   , None)),
+		("mapConstellationCache"      , (393,   0, ("constellations"  , "constellations"  , False)   , None)),
+		("mapSystemCache"             , (393,   0, ("systems"         , "systems"         , False)   , None)),
+
+		("mapJumpCache"               , (393,   0, ("jumps"           , "jumps"           , False)   , None)),
+
+		("mapFactionsOwningSolarSystems",(393,  0, ("factionsOwningSolarSystems", "factionsOwningSolarSystems", False), None)),
+		("mapCelestialLocationCache"  , (393,   0, ("locationCache"   , None              , None )   , None)),
+
+		("mapSolarSystemContentCache" , (393,   0, ("solarSystemContent", None            , None )   , None)),
 	)
 
 
@@ -308,27 +313,14 @@ class Config(object):
 			id_ = row.corporationID
 			d[id_] = DBRow(rd, [id_, row.corporationName, const.typeCorporation, 0, row.corporationNameID])
 
-		if self._languageID:
-			# cerberus version
-			for row in self.cache.LoadBulk(const.cacheChrNpcCharacters):
-				id_ = row.characterID
-				npcName = self._localization.GetImportantByMessageID(id_) or row.characterName
-				d[id_] = DBRow(rd, [id_, row.characterName, bloodlinesToTypes[row.bloodlineID], row.gender, row.characterNameID])
+		for row in self.cache.LoadBulk(const.cacheChrNpcCharacters):
+			id_ = row.characterID
+			npcName = self._localization.GetImportantByMessageID(id_) or row.characterName
+			d[id_] = DBRow(rd, [id_, row.characterName, bloodlinesToTypes[row.bloodlineID], row.gender, row.characterNameID])
 
-			auraName = self._localization.GetImportantByLabel(_OWNER_NAME_OVERRIDES[_OWNER_AURA_IDENTIFIER])
-			sysName = self._localization.GetByLabel(_OWNER_NAME_OVERRIDES[_OWNER_SYSTEM_IDENTIFIER])
-		else:
-			# non-cerberus version
-			for row in self.cache.LoadBulk(const.cacheChrNpcCharacters):
-				id_ = row.characterID
-				npcName = row.characterName
-				d[id_] = DBRow(rd, [id_, row.characterName, bloodlinesToTypes[row.bloodlineID], row.gender, row.characterNameID])
+		auraName = self._localization.GetImportantByLabel(_OWNER_NAME_OVERRIDES[_OWNER_AURA_IDENTIFIER])
+		sysName = self._localization.GetByLabel(_OWNER_NAME_OVERRIDES[_OWNER_SYSTEM_IDENTIFIER])
 
-			auraName = "Aura"
-			sysName = "EVE System"
-
-#		for id_ in const.auraAgentIDs:
-#			d[id_].ownerName = auraName
 		d[1] = blue.DBRow(rd, [1, sysName, 0, None, None])
 
 		rs.lines = rs.items.values()
@@ -338,7 +330,6 @@ class Config(object):
 	@_memoize
 	def evelocations(self):
 		rs = util.IndexRowset(['locationID', 'locationName', 'x', 'y', 'z', 'locationNameID'], None, key="locationID", RowClass=EveLocations, cfgInstance=self)
-		d = rs.items
 
 		rd = blue.DBRowDescriptor((
 			('locationID', const.DBTYPE_I4),
@@ -351,38 +342,12 @@ class Config(object):
 
 		DBRow = blue.DBRow
 
-		if self._languageID:
-			getname = self._localization.GetImportantByMessageID
-
-		for table, name in (
-			(self.regions, "region"),  # 1xxxxxxx
-			(self.constellations, "constellation"),  # 2xxxxxxx
-			(self.solarsystems, "solarSystem"),  # 3xxxxxxx
-			(self.stations, "station"),  # 6xxxxxxx
-		):
-			hdr = table.header
-			id_ix = hdr.index(name + "ID")
-
-			try:
-				nameid_ix = hdr.index(name + "NameID")
-				if self._languageID:
-					for row in table.lines:
-						id_ = row[id_ix]
-						nameID = row[nameid_ix]
-						d[id_] = DBRow(rd, [id_, getname(nameID), row.x, row.y, -row.z, nameID])
-				else:
-					name_ix = hdr.index(name + "Name")
-					for row in table.lines:
-						id_ = row[id_ix]
-						d[id_] = DBRow(rd, [id_, row[name_ix], row.x, row.y, -row.z, row[nameid_ix]])
-
-			except ValueError:
-				# no nameID.
-				name_ix = hdr.index(name + "Name")
-				for row in table.lines:
-					id_ = row[id_ix]
-					d[id_] = DBRow(rd, [id_, row[name_ix], row.x, row.y, -row.z, None])
-
+		_trans = self._localization.GetImportantByMessageID
+		d = rs.items
+		for fsdtable in (self.mapRegionCache, self.mapConstellationCache, self.mapSystemCache):
+			for itemID, item in fsdtable.iteritems():
+				c = item.center
+				d[itemID] = DBRow(rd, [itemID, _trans(item.nameID), c.x, c.y, c.z, item.nameID])
 
 		# set evelocations attr here, because the following code needs
 		# to access the table to generate the planet names.
@@ -395,8 +360,8 @@ class Config(object):
 #			#self.rawCelestialCache[row['celestialID']] = celestialNameData
 #			d[row['celestialID']] = blue.DBRow(rd, [row['celestialID'], celestialName, row['x'], row['y'], row['z'], 0])
 
-
 		rs.lines = rs.items.values()
+
 		return rs
 
 
@@ -491,8 +456,6 @@ class Config(object):
 
 	@_memoize
 	def _localization(self):
-		if not self._languageID:
-			raise RuntimeError("Cerberus started without languageID set")
 		return localization.Localization(self.cache.root, self._languageID, cfgInstance=self)
 
 	@_memoize
@@ -551,13 +514,12 @@ class Config(object):
 	def release(self):
 		# purge all loaded tables
 
-		for tableName in self.tables:
-			try:
-				delattr(self, tableName)
-			except AttributeError:
-				pass
-
-		delattr(self, "_averageMarketPrice")
+		for tableList in (self.tables, ("_averageMarketPrice",)):
+			for tableName in tableList:
+				try:
+					delattr(self, tableName)
+				except AttributeError:
+					pass
 
 		self.cache._time_load = 0.0
 		self._attrCache = {}
@@ -606,18 +568,20 @@ class Config(object):
 			# if it fails, the previously loaded schema should still be there.
 			schema, offset = fsd.LoadEmbeddedSchema(res.fh)
 		except RuntimeError:
-			pass
+			offset = 0
 
 		if schema is None:
 			raise RuntimeError("No schema found for %s" % tableName)
 
 		fsd.PrepareSchema(schema)
 
-#		if schema['type'] == 'dict' and schema.get('buildIndex', False):
-#			# Disk-based access
-#			return fsd.LoadIndexFromFile(res.fh, schema, cacheNum, offset=offset)
+		if schema.get('multiIndex'):
+			# Disk-based access for multi index tables because only the
+			# FSD_MultiIndex class can handle them properly.
+			return fsd.LoadIndexFromFile(res.fh, schema, cacheNum, offset=offset)
 
-		# Memory-based access
+		# any other table will use memory-based access because they are pretty
+		# small anyway, and they are considerably faster when used like this.
 		return fsd.LoadFromString(res.Read(), schema)
 
 
@@ -650,9 +614,10 @@ class Config(object):
 			else:
 				getkey = getattr
 
+			_get = rs.get
 			for row in obj:
 				key = getkey(row, primaryKey)
-				li = rs.get(key)
+				li = _get(key)
 				if li is None:
 					rs[key] = [row]
 				else:
@@ -663,7 +628,7 @@ class Config(object):
 		return rs
 
 
-	def prime(self, tables=None, callback=None, debug=False):
+	def prime(self, tables=None, callback=None, debug=False, onlyFSD=False):
 		"""Loads the tables named in the tables sequence. If no tables are
 specified, it will load all supported ones. A callback function can be provided
 which will be called as func(current, total, tableName).
@@ -696,6 +661,8 @@ which will be called as func(current, total, tableName).
 			total = len(tables)
 		
 			for tableName in tables:
+				if onlyFSD and len(self._tables[tableName]) != 4:
+					continue
 
 				if callback:
 					callback(current, total, tableName)
@@ -779,8 +746,9 @@ which will be called as func(current, total, tableName).
 		return 0
 
 
-	@staticmethod
-	def _GetCelestialNameDataFromLocalRow(row):
+	def GetCelestialNameFromLocalRow(self, row):
+		# row keys:
+		# ['celestialID', 'celestialNameID', 'solarSystemID', 'typeID', 'groupID', 'radius', 'x', 'y', 'z', 'orbitID', 'orbitIndex', 'celestialIndex']
 		celestialGroupID = row['groupID']
 		celestialNameID = row['celestialNameID']
 
@@ -806,60 +774,12 @@ which will be called as func(current, total, tableName).
 			label = None
 			param = None
 
-		return label, param
-
-
-	def GetCelestialNameFromLocalRow(self, row):
-		# row keys:
-		# ['celestialID', 'celestialNameID', 'solarSystemID', 'typeID', 'groupID', 'radius', 'x', 'y', 'z', 'orbitID', 'orbitIndex', 'celestialIndex']
-
-		if self._languageID:
-			# Fetch name through cerberus
-			label, param = self._GetCelestialNameDataFromLocalRow(row)
-			return self._localization.GetByLabel(label, **param)
-
-		celestialGroupID = row['groupID']
-		celestialNameID = row['celestialNameID']
-
-		if celestialNameID is not None and celestialGroupID != const.groupStargate:
-			try:
-				return const._NAMED_CELESTIALS[row['celestialID']]
-			except KeyError:
-				raise RuntimeError("Hardcoded celestial names table incomplete.")
-
-		if celestialGroupID == const.groupAsteroidBelt:
-			return "%s %s - %s %d" % (
-				self.solarsystems.Get(row['solarSystemID']).solarSystemName, util.IntToRoman(row['celestialIndex']), self.invtypes.Get(row['typeID']).name, row['orbitIndex'])
-		elif celestialGroupID == const.groupMoon:
-			return "%s %s - Moon %d" % (
-				self.solarsystems.Get(row['solarSystemID']).solarSystemName, util.IntToRoman(row['celestialIndex']), row['orbitIndex'])
-		elif celestialGroupID == const.groupPlanet:
-			return "%s %s" % (
-				self.solarsystems.Get(row['solarSystemID']).solarSystemName, util.IntToRoman(row['celestialIndex']))
-		elif celestialGroupID == const.groupStargate:
-			return self.solarsystems.Get(row['celestialNameID']).solarSystemName
-		elif celestialGroupID == const.groupSun:
-			return "%s - Star" % self.solarsystems.Get(row['solarSystemID']).solarSystemName
-		else:
-			return ""
+		return self._localization.GetByLabel(label, **param)
 
 
 	def GetNPCStationNameFromLocalRow(self, row):
-		if self._languageID:
-			if row['useOperationName']:
-				operationNameID = self.staoperationtypes.Get(row['operationID']).operationNameID
-				operationName = self._localization.GetByMessageID(operationNameID)
-				#operationNameEN = self._localization.GetByMessageID(operationNameID, "en-us")
-			else:
-				operationName = ''
-				#operationNameEN = ''
-			locName = self._localization.GetByLabel('UI/Locations/LocationNPCStationFormatter', orbitID=row['orbitID'], corporationID=row['ownerID'], operationName=operationName)
-			#locNameEN = localization.GetByLabel('UI/Locations/LocationNPCStationFormatter', "en-us", orbitID=row['orbitID'], corporationID=row['ownerID'], operationName=operationNameEN)
-			#return localization.FormatImportantString(locName, locNameEN)
-			return locName
-
-		# non-cerberus version
-		return self.stations.Get(row['stationID']).stationName
+		operationName = self._localization.GetByMessageID(self.staoperationtypes.Get(row['operationID']).operationNameID) if row['useOperationName'] else ""
+		return self._localization.GetByLabel('UI/Locations/LocationNPCStationFormatter', orbitID=row['orbitID'], corporationID=row['ownerID'], operationName=operationName)
 
 
 	def GetLocationsLocalBySystem(self, solarSystemID):

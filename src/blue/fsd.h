@@ -27,6 +27,7 @@ typedef struct {
     keymap *km_map;  // pointer to keymap
 	int km_entrysize;
 	int km_signed;  // signed keys anyway?
+	int km_add;  // add this to every offset
 } PyKeyMapObject;
 
 typedef struct {

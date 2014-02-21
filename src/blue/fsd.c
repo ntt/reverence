@@ -59,13 +59,14 @@ PyObject *
 keymapiter_next(PyKeyMapIteratorObject *self)
 {
 	keymap_entry *entry;
-	int size;
+	int offset, size;
 
 	if(self->kmi_index < 0 || self->kmi_index >= self->kmi_keymap->km_map->count)
 		return NULL;
 
 	entry = (keymap_entry *)&(((char *)self->kmi_keymap->km_map->entry)[self->kmi_keymap->km_entrysize * self->kmi_index++]);
 	size = (self->kmi_keymap->km_entrysize == 12) ? entry->size : 0;
+	offset = entry->offset + self->kmi_keymap->km_add;
 
 	switch(self->kmi_mode)
 	{
@@ -75,10 +76,10 @@ keymapiter_next(PyKeyMapIteratorObject *self)
 			else
 				return PyLong_FromUnsignedLong(entry->key);
 
-		case ITERVALUES   : return Py_BuildValue("ii", entry->offset, size);
-		case ITERITEMS    : return Py_BuildValue((self->kmi_keymap->km_signed ? "i(ii)" : "I(ii)"), entry->key, entry->offset, size);
-		case ITERVALUES_NS: return PyLong_FromLong(entry->offset);
-		case ITERITEMS_NS : return Py_BuildValue("ii", entry->key, entry->offset);
+		case ITERVALUES   : return Py_BuildValue("ii", offset, size);
+		case ITERITEMS    : return Py_BuildValue((self->kmi_keymap->km_signed ? "i(ii)" : "I(ii)"), entry->key, offset, size);
+		case ITERVALUES_NS: return PyLong_FromLong(offset);
+		case ITERITEMS_NS : return Py_BuildValue("ii", entry->key, offset);
 
 		default:
 			PyErr_Format(PyExc_RuntimeError, "Invalid mode for KeyMapIterator: %d", self->kmi_mode);
@@ -146,7 +147,9 @@ keymap_initialize(PyKeyMapObject *self, PyObject *args)
 	int hassize = 1;
 	int issigned = 0;
 
-	if(!PyArg_ParseTuple(args, "S|iii:Initialize", &pydata, &offset, &hassize, &issigned))
+	self->km_add = 0;
+
+	if(!PyArg_ParseTuple(args, "S|iiii:Initialize", &pydata, &offset, &hassize, &issigned, &self->km_add))
 		return NULL;
 
 	PyString_AsStringAndSize((PyObject *)pydata, &data, &size);
@@ -230,7 +233,7 @@ _internal_get(PyKeyMapObject *self, PyObject *key, int raise)
 
 	size = (self->km_entrysize == 12) ? entry->size : 0;
 
-	return Py_BuildValue("ii", entry->offset, size);
+	return Py_BuildValue("ii", entry->offset+self->km_add, size);
 }
 
 static PyObject *
@@ -294,6 +297,18 @@ keymap_iterspecial(PyKeyMapObject *self, PyObject *pymode)
 	return (PyObject *)_iter(self, mode);
 }
 
+int
+keymap_contains(PyKeyMapObject *self, PyObject *key)
+{
+	uint32_t k;
+	keymap_entry *entry;
+
+	if(!PyInt_Check(key) && !PyLong_Check(key))
+		return 0;
+
+	k = PyInt_AsLong(key);
+	return !!bsearch(&k, self->km_map->entry, self->km_map->count, self->km_entrysize, (void *)_keycmp);
+}
 
 
 static PySequenceMethods keymap_as_sequence = {
@@ -304,7 +319,7 @@ static PySequenceMethods keymap_as_sequence = {
 	0,								/* sq_slice */
 	0, //(ssizeobjargproc)keymap_sq_ass_item,	/* sq_ass_item */
 	0,								/* sq_ass_slice */
-	0,								/* sq_contains */
+	keymap_contains,				/* sq_contains */
 };
 
 
@@ -339,7 +354,7 @@ PyTypeObject PyKeyMap_Type = {
 	0,					/* tp_compare */
 	0,					/* tp_repr */
 	0,					/* tp_as_number */
-	0, //&keymap_as_sequence,	/* tp_as_sequence */
+	&keymap_as_sequence,	/* tp_as_sequence */
 	&keymap_as_mapping,	/* tp_as_mapping */
 	0,					/* tp_hash */
 	0,					/* tp_call */
@@ -400,6 +415,52 @@ fsd_int32_from(PyObject *self, PyObject *args)
 	if(offset >= 0 && offset <= size-4)
 		return PyInt_FromLong(*(int32_t *)&s[offset]);
 	PyErr_SetString(PyExc_ValueError, "_int32_from requires a buffer of at least 4 bytes");
+	return NULL;
+}
+
+PyObject *
+fsd_float_from(PyObject *self, PyObject *args)
+{
+	char *s;
+	int size, offset=0;
+	PyObject *dummy;  // used by fsd.py
+	if(!PyArg_ParseTuple(args, "s#|iO:_float", &s, &size, &offset, &dummy))
+		return NULL;
+	if(offset >= 0 && offset <= size-4)
+		return PyFloat_FromDouble((double)*(float *)&s[offset]);
+	PyErr_SetString(PyExc_ValueError, "_float_from requires a buffer of at least 4 bytes");
+	return NULL;
+}
+
+PyObject *
+fsd_double_from(PyObject *self, PyObject *args)
+{
+	char *s;
+	int size, offset=0;
+	PyObject *dummy;  // used by fsd.py
+	if(!PyArg_ParseTuple(args, "s#|iO:_double", &s, &size, &offset, &dummy))
+		return NULL;
+	if(offset >= 0 && offset <= size-8)
+		return PyFloat_FromDouble(*(double *)&s[offset]);
+	PyErr_SetString(PyExc_ValueError, "_double_from requires a buffer of at least 4 bytes");
+	return NULL;
+}
+
+PyObject *
+fsd_bool_from(PyObject *self, PyObject *args)
+{
+	char *s;
+	int size, offset=0;
+	PyObject *dummy;  // used by fsd.py
+	if(!PyArg_ParseTuple(args, "s#|iO:_double", &s, &size, &offset, &dummy))
+		return NULL;
+	if(offset >= 0 && offset <= size-1)
+	{
+		dummy = (s[offset] == '\xff')?Py_True:Py_False;
+		Py_INCREF(dummy);
+		return dummy;
+	}
+	PyErr_SetString(PyExc_ValueError, "_double_from requires a buffer of at least 4 bytes");
 	return NULL;
 }
 
@@ -477,7 +538,10 @@ fsd_make_offsets_table(PyObject *self, PyObject *args)
 static struct PyMethodDef fsd_methods[] = {
 	{"_uint32_from", (PyCFunction)fsd_uint32_from, METH_VARARGS, NULL},
 	{"_int32_from", (PyCFunction)fsd_int32_from, METH_VARARGS, NULL},
+	{"_float_from", (PyCFunction)fsd_float_from, METH_VARARGS, NULL},
+	{"_double_from", (PyCFunction)fsd_double_from, METH_VARARGS, NULL},
 	{"_string_from", (PyCFunction)fsd_string_from, METH_VARARGS, NULL},
+	{"_bool_from", (PyCFunction)fsd_bool_from, METH_VARARGS, NULL},
 	{"_make_offsets_table", (PyCFunction)fsd_make_offsets_table, METH_VARARGS, NULL},
 	{ NULL, NULL }
 };

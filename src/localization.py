@@ -12,6 +12,10 @@ Used with permission from CCP.
 # Note: If I had to write about all the stuff that is wrong with the Cerberus
 # code in the EVE client, this script file would probably be twice as big.
 
+# Note2: This is not a full featured Cerberus. The primary purpose of this
+# minimal version is to provide translations for EVE's static content,
+# such as names and descriptions.
+
 import os
 import cPickle
 

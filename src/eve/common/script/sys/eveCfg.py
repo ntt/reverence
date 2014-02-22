@@ -9,9 +9,7 @@ included with the distribution).
 Parts of code inspired by or based on EVE Online, with permission from CCP.
 """
 
-import reverence.carbon.common.script.sys.crowset as dbutil
 from reverence.carbon.common.script.sys.row import Row
-import reverence.eve.common.script.sys.rowset as util
 
 _get = Row.__getattr__
 
@@ -22,6 +20,14 @@ def _localized(row, attr, messageID):
 def _localized_important(row, attr, messageID):
 	_cfg = (row.cfg or cfg)
 	return _cfg._localization.GetImportantByMessageID(messageID)
+
+
+_OWNER_AURA_IDENTIFIER = -1
+_OWNER_SYSTEM_IDENTIFIER = -2
+_OWNER_NAME_OVERRIDES = {
+	_OWNER_AURA_IDENTIFIER: 'UI/Agents/AuraAgentName',
+	_OWNER_SYSTEM_IDENTIFIER: 'UI/Chat/ChatEngine/EveSystem'
+}
 
 
 def Singleton(dbrow):
@@ -265,13 +271,15 @@ class EveLocations(Row):
 #		if self.locationID in cfg.rawCelestialCache:
 #			(lbl, kwargs,) = cfg.rawCelestialCache[self.locationID]
 #			return self.cfg._localization.GetByLabel(lbl, languageID, **kwargs)
-		return _get(self, name)
+		return self.locationName
 
 #	def Station(self):
 #		return self.cfg.GetSvc("stationSvc").GetStation(self.id)
 
 
 class RamCompletedStatus(Row):
+	__guid__ = 'cfg.RamCompletedStatus'
+
 	def __getattr__(self, name):
 		if name in ("name", "completedStatusName"):
 			return _localized(self, "completedStatusName", self.completedStatusTextID)
@@ -288,6 +296,8 @@ class RamCompletedStatus(Row):
 
 
 class RamActivity(Row):
+	__guid__ = 'cfg.RamActivity'
+
 	def __getattr__(self, name):
 		if name in ("name", "activityName"):
 			return _localized(self, "activityName", self.activityNameID)
@@ -304,6 +314,8 @@ class RamActivity(Row):
 
 
 class RamDetail(Row):
+	__guid__ = 'cfg.RamDetail'
+
 	def __getattr__(self, name):
    		if name == "activityID":
 			return self.cfg.ramaltypes.Get(self.assemblyLineTypeID).activityID
@@ -311,6 +323,8 @@ class RamDetail(Row):
 
 
 class MapCelestialDescription(Row):
+	__guid__ = 'cfg.MapCelestialDescription'
+
 	def __getattr__(self, name):
 		if name == "description":
 			return _localized(self, "description", self.descriptionID)
@@ -321,6 +335,8 @@ class MapCelestialDescription(Row):
 
 
 class CrpTickerNames(Row):
+	__guid__ = 'cfg.CrpTickerNames'
+
 	def __getattr__(self, name):
 		if name in ("name", "description"):
 			return _get(self, "tickerName")
@@ -370,4 +386,7 @@ class Schematic(Row):
 			return int.__cmp__(self.schematicID, other)
 		else:
 			return Row.__cmp__(self, other)
+
+__all__ = ["Singleton", "StackSize", "RamActivityVirtualColumn", "_OWNER_AURA_IDENTIFIER", "_OWNER_SYSTEM_IDENTIFIER", "_OWNER_NAME_OVERRIDES"]
+__all__.extend([name for name, cls in locals().items() if getattr(cls, "__guid__", False)])
 

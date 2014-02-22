@@ -26,13 +26,9 @@ from . import localization, fsd
 
 # custom row containers are imported from this
 from .eve.common.script.sys.eveCfg import *
+from .eve.common.script.sys.rowset import IndexRowset, FilterRowset, IndexedRowLists
 
-_OWNER_AURA_IDENTIFIER = -1
-_OWNER_SYSTEM_IDENTIFIER = -2
-_OWNER_NAME_OVERRIDES = {
-	_OWNER_AURA_IDENTIFIER: 'UI/Agents/AuraAgentName',
-	_OWNER_SYSTEM_IDENTIFIER: 'UI/Chat/ChatEngine/EveSystem'
-}
+
 
 # used by GetLocationsLocalBySystem method
 _solarSystemObjectRowDescriptor = blue.DBRowDescriptor((
@@ -190,45 +186,45 @@ class Config(object):
 	__tables__ = (
 
 #		( cfg attrib                  , (ver, del, storage class       , row class         , primary key           bulkID)),
-		("invcategories"              , (  0,   0, util.IndexRowset    , InvCategory       , "categoryID"        , const.cacheInvCategories)),
-		("invgroups"                  , (  0,   0, util.IndexRowset    , InvGroup          , "groupID"           , const.cacheInvGroups)),
-		("invtypes"                   , (  0,   0, util.IndexRowset    , InvType           , "typeID"            , const.cacheInvTypes)),
-		("invmetagroups"              , (  0,   0, util.IndexRowset    , InvMetaGroup      , "metaGroupID"       , const.cacheInvMetaGroups)),
-		("invbptypes"                 , (  0,   0, util.IndexRowset    , Row               , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
-		("invreactiontypes"           , (  0,   0, util.FilterRowset   , Row               , "reactionTypeID"    , const.cacheInvTypeReactions)),
-		("shiptypes"                  , (  0,   0, util.IndexRowset    , Row               , "shipTypeID"        , const.cacheShipTypes)),
+		("invcategories"              , (  0,   0, IndexRowset         , InvCategory       , "categoryID"        , const.cacheInvCategories)),
+		("invgroups"                  , (  0,   0, IndexRowset         , InvGroup          , "groupID"           , const.cacheInvGroups)),
+		("invtypes"                   , (  0,   0, IndexRowset         , InvType           , "typeID"            , const.cacheInvTypes)),
+		("invmetagroups"              , (  0,   0, IndexRowset         , InvMetaGroup      , "metaGroupID"       , const.cacheInvMetaGroups)),
+		("invbptypes"                 , (  0,   0, IndexRowset         , Row               , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
+		("invreactiontypes"           , (  0,   0, FilterRowset        , Row               , "reactionTypeID"    , const.cacheInvTypeReactions)),
+		("shiptypes"                  , (  0,   0, IndexRowset         , Row               , "shipTypeID"        , const.cacheShipTypes)),
 
-		("dgmattribs"                 , (  0,   0, util.IndexRowset    , DgmAttribute      , "attributeID"       , const.cacheDogmaAttributes)),
-		("dgmeffects"                 , (  0,   0, util.IndexRowset    , DgmEffect         , "effectID"          , const.cacheDogmaEffects)),
-		("dgmtypeattribs"             , (  0,   0, util.IndexedRowLists, None              , ('typeID',)         , const.cacheDogmaTypeAttributes)),
-		("dgmtypeeffects"             , (  0,   0, util.IndexedRowLists, None              , ('typeID',)         , const.cacheDogmaTypeEffects)),
-		("dgmexpressions"             , (297,   0, util.IndexRowset    , Row               , 'expressionID'      , const.cacheDogmaExpressions)),
-		("dgmunits"                   , (299,   0, util.IndexRowset    , DgmUnit           , "unitID"            , const.cacheDogmaUnits)),
+		("dgmattribs"                 , (  0,   0, IndexRowset         , DgmAttribute      , "attributeID"       , const.cacheDogmaAttributes)),
+		("dgmeffects"                 , (  0,   0, IndexRowset         , DgmEffect         , "effectID"          , const.cacheDogmaEffects)),
+		("dgmtypeattribs"             , (  0,   0, IndexedRowLists     , None              , ('typeID',)         , const.cacheDogmaTypeAttributes)),
+		("dgmtypeeffects"             , (  0,   0, IndexedRowLists     , None              , ('typeID',)         , const.cacheDogmaTypeEffects)),
+		("dgmexpressions"             , (297,   0, IndexRowset         , Row               , 'expressionID'      , const.cacheDogmaExpressions)),
+		("dgmunits"                   , (299,   0, IndexRowset         , DgmUnit           , "unitID"            , const.cacheDogmaUnits)),
 
-		("ramaltypes"                 , (  0,   0, util.IndexRowset    , Row               , "assemblyLineTypeID", const.cacheRamAssemblyLineTypes)),
-		("ramactivities"              , (  0,   0, util.IndexRowset    , RamActivity       , "activityID"        , const.cacheRamActivities)),
-		("ramcompletedstatuses"       , (276,   0, util.IndexRowset    , RamCompletedStatus, "completedStatus"   , const.cacheRamCompletedStatuses)),
-		("ramaltypesdetailpercategory", (  0,   0, util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesCategory)),
-		("ramaltypesdetailpergroup"   , (  0,   0, util.FilterRowset   , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesGroup)),
+		("ramaltypes"                 , (  0,   0, IndexRowset         , Row               , "assemblyLineTypeID", const.cacheRamAssemblyLineTypes)),
+		("ramactivities"              , (  0,   0, IndexRowset         , RamActivity       , "activityID"        , const.cacheRamActivities)),
+		("ramcompletedstatuses"       , (276,   0, IndexRowset         , RamCompletedStatus, "completedStatus"   , const.cacheRamCompletedStatuses)),
+		("ramaltypesdetailpercategory", (  0,   0, FilterRowset        , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesCategory)),
+		("ramaltypesdetailpergroup"   , (  0,   0, FilterRowset        , RamDetail         , "assemblyLineTypeID", const.cacheRamAssemblyLineTypesGroup)),
 
-		("billtypes"                  , (  0,   0, util.IndexRowset    , Billtype          , 'billTypeID'        , const.cacheActBillTypes)),
+		("billtypes"                  , (  0,   0, IndexRowset         , Billtype          , 'billTypeID'        , const.cacheActBillTypes)),
 
-		("schematics"                 , (242,   0, util.IndexRowset    , Schematic         , 'schematicID'       , const.cachePlanetSchematics)),
+		("schematics"                 , (242,   0, IndexRowset         , Schematic         , 'schematicID'       , const.cachePlanetSchematics)),
 		("ramtyperequirements"        , (242,   0, dict                , None              , ('typeID', 'activityID'), const.cacheRamTypeRequirements)),
 		("invtypematerials"           , (254,   0, dict                , None              , 'typeID'            , const.cacheInvTypeMaterials)),
 
 		# location/owner stuff.
-		("factions"                   , (276,   0, util.IndexRowset    , Row               , "factionID"         , const.cacheChrFactions)),
-		("npccorporations"            , (276,   0, util.IndexRowset    , Row               , "corporationID"     , const.cacheCrpNpcCorporations)),
-		("corptickernames"            , (  0,   0, util.IndexRowset    , CrpTickerNames    , "corporationID"     , const.cacheCrpTickerNamesStatic)),
+		("factions"                   , (276,   0, IndexRowset         , Row               , "factionID"         , const.cacheChrFactions)),
+		("npccorporations"            , (276,   0, IndexRowset         , Row               , "corporationID"     , const.cacheCrpNpcCorporations)),
+		("corptickernames"            , (  0,   0, IndexRowset         , CrpTickerNames    , "corporationID"     , const.cacheCrpTickerNamesStatic)),
 
-		("staoperationtypes"          , (299,   0, util.IndexRowset    , Row               , "operationID"       , const.cacheStaOperations)),
-		("mapcelestialdescriptions"   , (276,   0, util.IndexRowset    , MapCelestialDescription, "itemID"       , const.cacheMapCelestialDescriptions)),
-		("locationwormholeclasses"    , (  0,   0, util.IndexRowset    , Row               , "locationID"        , const.cacheMapLocationWormholeClasses)),
+		("staoperationtypes"          , (299,   0, IndexRowset         , Row               , "operationID"       , const.cacheStaOperations)),
+		("mapcelestialdescriptions"   , (276,   0, IndexRowset         , MapCelestialDescription, "itemID"       , const.cacheMapCelestialDescriptions)),
+		("locationwormholeclasses"    , (  0,   0, IndexRowset         , Row               , "locationID"        , const.cacheMapLocationWormholeClasses)),
 
-		("stations"                   , (299,   0, util.IndexRowset    , Row               , "stationID"         , const.cacheStaStationsStatic)),
+		("stations"                   , (299,   0, IndexRowset         , Row               , "stationID"         , const.cacheStaStationsStatic)),
 
-		("nebulas"                    , (299,   0, util.IndexRowset    , Row               , "locationID"        , const.cacheMapNebulas)),
+		("nebulas"                    , (299,   0, IndexRowset         , Row               , "locationID"        , const.cacheMapNebulas)),
 
 		# autogenerated FilterRowsets from some of the above tables
 		("groupsByCategories"         , (  0,   0, "invgroups"         , None              , "categoryID"        , None)),
@@ -293,7 +289,7 @@ class Config(object):
 			const.bloodlineVherokior: const.typeCharacterVherokior
 		}
 
-		rs = util.IndexRowset(['ownerID', 'ownerName', 'typeID', 'gender', 'ownerNameID'], None, key="ownerID", RowClass=EveOwners, cfgInstance=self)
+		rs = IndexRowset(['ownerID', 'ownerName', 'typeID', 'gender', 'ownerNameID'], None, key="ownerID", RowClass=EveOwners, cfgInstance=self)
 		d = rs.items
 
 		rd = blue.DBRowDescriptor((
@@ -329,7 +325,7 @@ class Config(object):
 
 	@_memoize
 	def evelocations(self):
-		rs = util.IndexRowset(['locationID', 'locationName', 'x', 'y', 'z', 'locationNameID'], None, key="locationID", RowClass=EveLocations, cfgInstance=self)
+		rs = IndexRowset(['locationID', 'locationName', 'x', 'y', 'z', 'locationNameID'], None, key="locationID", RowClass=EveLocations, cfgInstance=self)
 
 		rd = blue.DBRowDescriptor((
 			('locationID', const.DBTYPE_I4),
@@ -349,16 +345,29 @@ class Config(object):
 				c = item.center
 				d[itemID] = DBRow(rd, [itemID, _trans(item.nameID), c.x, c.y, c.z, item.nameID])
 
-		# set evelocations attr here, because the following code needs
-		# to access the table to generate the planet names.
+		# code below requires the partially completed table.
 		self.evelocations = rs
 
+#		# This stuff below takes 12 seconds on my i7.
+#		# TODO: find solution (dynamic lookup, I suppose ...)
+#
 #		# get stars, planets, belts and moons.
-#		sql = 'SELECT * FROM celestials WHERE celestialID >= 40000000 AND celestialID < 60000000'
-#		for row in self.localdb.execute(sql):
+#		for row in self.localdb.execute("SELECT * FROM celestials"):
 #			celestialName = self.GetCelestialNameFromLocalRow(row)
-#			#self.rawCelestialCache[row['celestialID']] = celestialNameData
-#			d[row['celestialID']] = blue.DBRow(rd, [row['celestialID'], celestialName, row['x'], row['y'], row['z'], 0])
+#			cid = row["celestialID"]
+#			d[cid] = blue.DBRow(rd, [cid, celestialName, row["x"], row["y"], row["z"], 0])
+#
+#		# stations
+#		_gbm = self._localization.GetByMessageID
+#		_gbl = self._localization.GetByLabel
+#		_sot = self.staoperationtypes.Get
+#		for row in self.localdb.execute("SELECT * FROM npcStations"):
+#			if row["isConquerable"]:
+#				continue
+#			stationID = row["stationID"]
+#			operationName = _gbm(_sot(row["operationID"]).operationNameID) if row["useOperationName"] else ""
+#			stationName = _gbl('UI/Locations/LocationNPCStationFormatter', orbitID=row["orbitID"], corporationID=row["ownerID"], operationName=operationName)
+#			d[stationID] = DBRow(rd, [stationID, stationName, row["x"], row["y"], row["z"], 0])
 
 		rs.lines = rs.items.values()
 
@@ -403,8 +412,8 @@ class Config(object):
 	def _schematicstypemap_load(self):
 		obj = self.cache.LoadBulk(const.cachePlanetSchematicsTypeMap)
 		header = obj.header.Keys()
-		self.schematicstypemap = util.FilterRowset(header, obj, "schematicID")
-		self.schematicsByType = util.FilterRowset(header, obj, "typeID")
+		self.schematicstypemap = FilterRowset(header, obj, "schematicID")
+		self.schematicsByType = FilterRowset(header, obj, "typeID")
 
 	@_memoize
 	def schematicstypemap(self):
@@ -421,8 +430,8 @@ class Config(object):
 	def _schematicspinmap_load(self):
 		obj = self.cache.LoadBulk(const.cachePlanetSchematicsPinMap)
 		header = obj.header.Keys()
-		self.schematicspinmap = util.FilterRowset(header, obj, "schematicID")
-		self.schematicsByPin = util.FilterRowset(header, obj, "pinTypeID")
+		self.schematicspinmap = FilterRowset(header, obj, "schematicID")
+		self.schematicsByPin = FilterRowset(header, obj, "pinTypeID")
 
 	@_memoize
 	def schematicspinmap(self):
@@ -439,8 +448,8 @@ class Config(object):
 	def _invmetatypes_load(self):
 		obj = self.cache.LoadBulk(const.cacheInvMetaTypes)
 		header = obj.header.Keys()
-		self.invmetatypes = util.FilterRowset(header, obj, "parentTypeID")
-		self.invmetatypesByTypeID = util.FilterRowset(header, obj, "typeID")
+		self.invmetatypes = FilterRowset(header, obj, "parentTypeID")
+		self.invmetatypesByTypeID = FilterRowset(header, obj, "typeID")
 
 	@_memoize
 	def invmetatypes(self):
@@ -485,7 +494,7 @@ class Config(object):
 		))
 		self._attrCache = {}
 
-		self.localdb = sqlite3.connect(os.path.join(self.cache.BULK_SYSTEM_PATH, "mapbulk.db"))
+		self.localdb = sqlite3.connect(os.path.join(self.cache.root, "bin", "staticdata", "mapObjects.db"))
 		self.localdb.row_factory = sqlite3.Row
 
 
@@ -597,13 +606,13 @@ class Config(object):
 		if obj is None:
 			raise RuntimeError("Unable to load '%s' (bulkID:%d)" % (tableName, bulkID))
 		
-		if issubclass(storageClass, util.IndexRowset):
+		if issubclass(storageClass, IndexRowset):
 			rs = storageClass(obj.header.Keys(), obj, key=primaryKey, RowClass=rowClass, cfgInstance=self)
 
-		elif issubclass(storageClass, util.FilterRowset):
+		elif issubclass(storageClass, FilterRowset):
 			rs = storageClass(obj.header.Keys(), obj, primaryKey, RowClass=rowClass)
 
-		elif issubclass(storageClass, util.IndexedRowLists):
+		elif issubclass(storageClass, IndexedRowLists):
 			rs = storageClass(obj, keys=primaryKey)
 
 		elif issubclass(storageClass, dict):
@@ -749,6 +758,7 @@ which will be called as func(current, total, tableName).
 	def GetCelestialNameFromLocalRow(self, row):
 		# row keys:
 		# ['celestialID', 'celestialNameID', 'solarSystemID', 'typeID', 'groupID', 'radius', 'x', 'y', 'z', 'orbitID', 'orbitIndex', 'celestialIndex']
+
 		celestialGroupID = row['groupID']
 		celestialNameID = row['celestialNameID']
 

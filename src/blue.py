@@ -201,7 +201,7 @@ def _find_global(module, name):
 	# locates a global. used by marshal.Load and integrated unpickler
 
 	# compatibility
-	if module == "util" and name == "KeyVal":
+	if module in ("util", "utillib") and name == "KeyVal":
 		return KeyVal
 	try:
 		m = __import__(module, globals(), locals(), (), -1)

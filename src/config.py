@@ -698,7 +698,7 @@ which will be called as func(current, total, tableName).
 		if typeID == const.typePlasticWrap:
 			raise RuntimeError("GetTypeVolume: cannot determine volume of plastic from type alone")
 
-		rec = cfg.invtypes.Get(typeID)
+		rec = self.invtypes.Get(typeID)
 		volume = rec.volume
 		if not singleton and typeID != const.typeBHMegaCargoShip:
 			volume = const.shipPackagedVolumesPerGroup.get(rec.groupID, volume)

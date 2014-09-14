@@ -346,7 +346,7 @@ class FSD_NamedVector(object):
 	def __getattr__(self, name):
 		try:
 			return self.data[self._getKeyIndex(name)]
-		except (KeyError, IndexError) as e:
+		except (TypeError, KeyError, IndexError) as e:
 			raise AttributeError(str(e))
 
 	def __repr__(self):

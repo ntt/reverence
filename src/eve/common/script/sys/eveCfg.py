@@ -318,7 +318,7 @@ class RamDetail(Row):
 
 	def __getattr__(self, name):
    		if name == "activityID":
-			return self.cfg.ramaltypes.Get(self.assemblyLineTypeID).activityID
+			return (self.cfg or cfg).ramaltypes.Get(self.assemblyLineTypeID).activityID
    		return _get(self, name)
 
 

@@ -44,6 +44,35 @@ PyObject *py__dict__ = NULL;
 PyObject *pyappend = NULL;
 
 
+#ifdef Py_UNICODE_WIDE
+PyObject *_PyUnicodeUCS4_FromUCS2(uint16_t *from, Py_ssize_t length)
+{
+	// on UCS4 python builds, this converts a UCS2 build's internal
+	// unicode representation to a Unicode object in a naive way that
+	// hopefully works for all cases in the EVE data.
+	PyObject *obj;
+	Py_ssize_t i;
+	uint32_t to[256], *buffer;
+
+
+	if(length < 256)
+		buffer = to;
+	else;
+		buffer = malloc(sizeof(uint32_t)*length);
+
+	for(i=0; i<length; i++)
+		buffer[i] = (uint32_t)(from[i]);
+
+	obj = (PyObject *)PyUnicodeUCS4_FromWideChar((wchar_t *)buffer, length);
+
+	if(buffer != to)
+		free(buffer);
+
+	return obj;
+}
+#endif
+
+
 #if MARSHAL_DEBUG
 void DEBUG(char *text)
 {
@@ -583,7 +612,7 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 
 		case TYPE_CHECKSUM:
 			CHECK_SIZE(4);
-			if(!skipcrc && (*(uint32_t *)s != (uint32_t)adler32(1, s, end-s)))
+			if(!skipcrc && (*(uint32_t *)s != (uint32_t)adler32(1, s, (unsigned long)(end-s))))
 			{
 				error = "checksum error";
 				goto fail;
@@ -640,13 +669,21 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 
 		case TYPE_UNICODE1:
 			CHECK_SIZE(2);
-			obj = PyUnicode_FromWideChar((wchar_t *)s, 0);
+#ifdef Py_UNICODE_WIDE
+			obj = _PyUnicodeUCS4_FromUCS2((void *)s, 1);
+#else
+			obj = PyUnicode_FromWideChar((wchar_t *)s, 1);
+#endif
 			s += 2;
 			break;
 
 		case TYPE_UNICODE:
 			CHECK_SIZE(length*2);
+#ifdef Py_UNICODE_WIDE
+			obj = _PyUnicodeUCS4_FromUCS2((void *)s, (int)length);
+#else
 			obj = PyUnicode_FromWideChar((wchar_t *)s, length);
+#endif
 			s += length*2;
 			break;
 
@@ -669,7 +706,7 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 			continue;
 
 		case TYPE_TUPLE:
-			NEW_SEQUENCE(TYPE_TUPLE, length);
+			NEW_SEQUENCE(TYPE_TUPLE, (int)length);
 			continue;
 
 		case TYPE_LIST0:
@@ -682,14 +719,14 @@ marshal_Load_internal(PyObject *py_stream, PyObject *py_callback, int skipcrc)
 			continue;
 
 		case TYPE_LIST:
-			NEW_SEQUENCE(TYPE_LIST, length);
+			NEW_SEQUENCE(TYPE_LIST, (int)length);
 			continue;
 
 		case TYPE_DICT:
 			if(length)
 			{
 				CHECK_SIZE(length*2);
-				PUSH_CONTAINER(TYPE_DICT, length*2);
+				PUSH_CONTAINER(TYPE_DICT, (int)length*2);
 				container->obj = PyDict_New();
 				container->obj2 = NULL;
 				container->index = 0;
@@ -858,7 +895,7 @@ else
 						// should follow. Pull it and create the DBRow.
 						READ_LENGTH;
 						CHECK_SIZE(length);
-						container->obj = PyDBRow_New((PyDBRowDescriptorObject *)obj, s, length);
+						container->obj = PyDBRow_New((PyDBRowDescriptorObject *)obj, s, (int)length);
 						container->free = 1+((PyDBRowDescriptorObject *)obj)->rd_num_objects;
 
 						if(!container->obj)

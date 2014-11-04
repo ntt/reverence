@@ -19,6 +19,7 @@ import time
 import sqlite3
 import glob
 import logging
+import json
 
 from . import _blue as blue
 from . import const, util
@@ -27,7 +28,6 @@ from . import localization, fsd
 # custom row containers are imported from this
 from .eve.common.script.sys.eveCfg import *
 from .eve.common.script.sys.rowset import IndexRowset, FilterRowset, IndexedRowLists
-
 
 
 # used by GetLocationsLocalBySystem method
@@ -43,6 +43,25 @@ _solarSystemObjectRowDescriptor = blue.DBRowDescriptor((
 	('y', const.DBTYPE_R8),
 	('z', const.DBTYPE_R8),
 ))
+
+
+class FSDLiteStorage(dict):
+	def __init__(self, path):
+		dict.__init__(self)
+		self._db = db = sqlite3.connect(path)
+		db.row_factory = sqlite3.Row
+
+		loads = json.loads
+		for typeID, data in db.execute("SELECT key,value FROM cache"):
+			self[int(typeID)] = loads(data)
+
+
+	def index(self, name, key, row=True):
+		for row in self._db.execute("SELECT * FROM indexes WHERE key = ?", ((name + "." + str(key)),) ):
+			if row:
+				return self[int(row[1])]
+			return int(row[1])
+		return None
 
 
 # Warning: Code below may accidentally your whole brain.
@@ -190,7 +209,7 @@ class Config(object):
 		("invgroups"                  , (  0,   0, IndexRowset         , InvGroup          , "groupID"           , const.cacheInvGroups)),
 		("invtypes"                   , (  0,   0, IndexRowset         , InvType           , "typeID"            , const.cacheInvTypes)),
 		("invmetagroups"              , (  0,   0, IndexRowset         , InvMetaGroup      , "metaGroupID"       , const.cacheInvMetaGroups)),
-		("invbptypes"                 , (  0,   0, IndexRowset         , Row               , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
+		("invbptypes"                 , (  0, 405, IndexRowset         , Row               , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
 		("invreactiontypes"           , (  0,   0, FilterRowset        , Row               , "reactionTypeID"    , const.cacheInvTypeReactions)),
 		("shiptypes"                  , (  0,   0, IndexRowset         , Row               , "shipTypeID"        , const.cacheShipTypes)),
 
@@ -242,6 +261,8 @@ class Config(object):
 		("schematicsByType"           , (242,   0)),
 		("schematicspinmap"           , (242,   0)),
 		("schematicsByPin"            , (242,   0)),
+		("blueprints"                 , (405,   0)),
+
 
 		# FSD stuff ------------------- (ver, del,  static name       , schema name       , optimize   cache size)
 		("messages"                   , (378,   0, ("dialogs"         , "dialogs"         , False)   , None)),
@@ -269,6 +290,12 @@ class Config(object):
 
 
 	# Custom table loader methods follow
+
+
+	@_memoize
+	def blueprints(self):
+		return FSDLiteStorage(os.path.join(self.cache.root, "bin", "staticdata", "blueprints.db"))
+
 
 	@_memoize
 	def eveowners(self):

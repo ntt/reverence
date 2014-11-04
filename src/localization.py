@@ -23,6 +23,7 @@ import gc
 
 from . import embedfs
 
+debug = False
 
 class BasePropertyHandler(object):
 	__id__ = 10
@@ -135,11 +136,12 @@ class Localization(object):
 				replacement = getter(param[data['variableName']], languageID, **data['kwargs'])
 				raw = raw.replace(token, unicode(replacement))
 		except KeyError:
-			print "NO HANDLER FOR:"
-			print "- token:", token
-			print "- data:", data
-			print "- param:", param
-			print "- format:", raw
+			if debug:
+				print "NO HANDLER FOR:"
+				print "- token:", token
+				print "- data:", data
+				print "- param:", param
+				print "- format:", raw
 			raise
 
 		return raw

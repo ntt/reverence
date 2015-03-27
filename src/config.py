@@ -323,7 +323,7 @@ class Config(object):
 		rd = blue.DBRowDescriptor((
 			('ownerID', const.DBTYPE_I4),
 			('ownerName', const.DBTYPE_WSTR),
-			('typeID', const.DBTYPE_I2),
+			('typeID', const.DBTYPE_I4),
 			('gender', const.DBTYPE_I2),
 			('ownerNameID', const.DBTYPE_I4),
 		))

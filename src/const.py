@@ -2125,6 +2125,7 @@ bloodlineNiKunni = 6
 bloodlineSebiestor = 3
 bloodlineStatic = 9
 bloodlineVherokior = 14
+bloodlineDrifter = 19
 
 raceAmarr = 4
 raceCaldari = 1

@@ -492,16 +492,16 @@ class Config(object):
 
 	@_memoize
 	def _localization(self):
-		return localization.Localization(self._eve, self._languageID, cfgInstance=self)
+		return localization.Localization(self.eve, self._languageID, cfgInstance=self)
 
 	@_memoize
 	def _averageMarketPrice(self):
-		return self._eve.RemoteSvc("config").GetAverageMarketPricesForClient()
+		return self.eve.RemoteSvc("config").GetAverageMarketPricesForClient()
 
 	#--
 
 	def __init__(self, eve):
-		self._eve = eve
+		self.eve = eve
 		self.cache = eve.cache
 		self.callback = None
 		protocol = self.protocol = (eve.protocol or 99999)
@@ -569,7 +569,7 @@ class Config(object):
 
 		# must patch our ResFile temporarily for CCP code to work.
 		_rf = bloo.ResFile
-		bloo.ResFile = self._eve.ResFile
+		bloo.ResFile = self.eve.ResFile
 
 		try:
 			if optimize is None:
@@ -584,7 +584,7 @@ class Config(object):
 	def _loadfsddata(self, staticName, schemaName, cacheNum, optimize):
 		# Custom FileStaticData loader.
 		# Grabs schema and binary blob from .stuff file.
-		res = self._eve.ResFile()
+		res = self.eve.ResFile()
 
 		schema = None
 		if staticName:
@@ -679,10 +679,10 @@ which will be called as func(current, total, tableName).
 			self._debug = True
 			start = time.clock()
 			print >>sys.stderr, "LOADING STATIC DATABASE"
-			print >>sys.stderr, "  machoCachePath:", self._eve.paths.machocache
-			print >>sys.stderr, "  machoVersion:", self._eve.paths.protocol
-			print >>sys.stderr, "  bulk system path:", self._eve.paths.bulkdata
-			print >>sys.stderr, "  bulk cache path:", self._eve.paths.bulkdata_updates
+			print >>sys.stderr, "  machoCachePath:", self.eve.paths.machocache
+			print >>sys.stderr, "  machoVersion:", self.eve.paths.protocol
+			print >>sys.stderr, "  bulk system path:", self.eve.paths.bulkdata
+			print >>sys.stderr, "  bulk cache path:", self.eve.paths.bulkdata_updates
 		try:
 			if tables is None:
 				# preload everything.

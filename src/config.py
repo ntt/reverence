@@ -313,7 +313,8 @@ class Config(object):
 			const.bloodlineAchura   : const.typeCharacterAchura,
 			const.bloodlineJinMei   : const.typeCharacterJinMei,
 			const.bloodlineKhanid   : const.typeCharacterKhanid,
-			const.bloodlineVherokior: const.typeCharacterVherokior
+			const.bloodlineVherokior: const.typeCharacterVherokior,
+			const.bloodlineDrifter  : const.typeCharacterDrifter,
 		}
 
 		rs = IndexRowset(['ownerID', 'ownerName', 'typeID', 'gender', 'ownerNameID'], None, key="ownerID", RowClass=EveOwners, cfgInstance=self)

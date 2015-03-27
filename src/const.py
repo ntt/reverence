@@ -775,6 +775,8 @@ typeCharacterNiKunni = 1374
 typeCharacterSebiestor = 1379
 typeCharacterStatic = 1381
 typeCharacterVherokior = 1386
+typeCharacterDrifter = 34574
+
 typeCloneGradeAlpha = 164
 typeCloneVatBayI = 23735
 typeCloningService = 28158

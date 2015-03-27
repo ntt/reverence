@@ -7,6 +7,7 @@ it under the terms of the BSD license (see the file LICENSE.txt
 included with the distribution).
 """
 
+import sys
 import os
 import glob
 
@@ -119,7 +120,7 @@ class _Paths(object):
 		elif sys.platform == "darwin" or os.name == "mac":
 			self.__discover_mac(server_name)
 		elif os.name in ("posix", "linux2"):
-			self.__discover_linux()
+			self.__discover_linux(server_name)
 
 
 		self.bulkdata = os.path.join(self.root, 'bulkdata')
@@ -181,7 +182,7 @@ class _Paths(object):
 			self.instancecache = os.path.join(_localappdata, "CCP", "EVE", _mangle_evepath(self.root, server_name))
 	
 
-	def __discover_mac(root, server_name):
+	def __discover_mac(self, server_name):
 		home = os.path.expanduser('~')
 		_localappdata = os.path.join(home, "Library/Application Support/EVE Online/p_drive/Local Settings/Application Data")
 		if not _exists(path):
@@ -189,7 +190,7 @@ class _Paths(object):
 
 		_programdata = _localappdata  # apparently....?!
 
-		actualroot = os.path.join(root, "Contents/Resources/transgaming/c_drive/Program Files/CCP/EVE")
+		actualroot = os.path.join(self.root, "Contents/Resources/transgaming/c_drive/Program Files/CCP/EVE")
 		if os.path.exists(actualroot):
 			self.root = actualroot
 
@@ -239,7 +240,7 @@ class _Paths(object):
 				os.path.join(wineroot, "drive_c/windows/profile", user),
 				os.path.join(wineroot, "drive_c/windows/profiles", user),
 			)
-			cachefoldername = _mangle_evepath(self.root[x+len(wineprefix)+7:], server_name)
+			cacheFolderName = _mangle_evepath(self.root[x+len(wineprefix)+7:], server_name)
 			self.instancecache = _scan_folders(candidates, "*/*/CCP/EVE/"+cacheFolderName)
 
 

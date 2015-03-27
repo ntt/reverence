@@ -185,7 +185,7 @@ class _Paths(object):
 	def __discover_mac(self, server_name):
 		home = os.path.expanduser('~')
 		_localappdata = os.path.join(home, "Library/Application Support/EVE Online/p_drive/Local Settings/Application Data")
-		if not _exists(path):
+		if not os.path.exists(path):
 			_localappdata = os.path.join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data")
 
 		_programdata = _localappdata  # apparently....?!
@@ -201,7 +201,7 @@ class _Paths(object):
 			self.instancecache = os.path.join(_localappdata, "CCP", "EVE", "c_program_files_ccp_eve_"+server_name.lower())
 
 
-	def __discover_linux(self, sever_name):
+	def __discover_linux(self, server_name):
 		import pwd
 
 		# Assuming a WINE install, we are now going to have to do
@@ -214,14 +214,14 @@ class _Paths(object):
 
 		if self.wineprefix:
 			# get the filesystem root for WINE
-			x = self.root.find(os.path.join(wineprefix, "drive_"))
+			x = self.root.find(os.path.join(self.wineprefix, "drive_"))
 			if x == -1:
 				raise RuntimeError("specified wineprefix does not appear in EVE root path")
-			wineroot = self.root[:x+len(wineprefix)]  # all drive_ folders be here
+			wineroot = self.root[:x+len(self.wineprefix)]  # all drive_ folders be here
 		
 		def _scan_folders(paths, pattern):
 			for path in paths:
-				for path in glob.iglob(_join(path, pattern)):
+				for path in glob.iglob(os.path.join(path, pattern)):
 					if exists(path):
 						return path
 
@@ -240,7 +240,7 @@ class _Paths(object):
 				os.path.join(wineroot, "drive_c/windows/profile", user),
 				os.path.join(wineroot, "drive_c/windows/profiles", user),
 			)
-			cacheFolderName = _mangle_evepath(self.root[x+len(wineprefix)+7:], server_name)
+			cacheFolderName = _mangle_evepath(self.root[x+len(self.wineprefix)+7:], server_name)
 			self.instancecache = _scan_folders(candidates, "*/*/CCP/EVE/"+cacheFolderName)
 
 

@@ -206,7 +206,7 @@ class EVE(object):
 
 	def readstuff(self, name):
 		"""Reads specified file in the virtual filesystem"""
-		f = _ResFile()
+		f = _ResFile(self.rescache)
 		f.Open(name)
 		return f.read()
 

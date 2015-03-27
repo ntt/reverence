@@ -211,17 +211,13 @@ class _Paths(object):
 		stat_info = os.stat(self.root)
 		user = pwd.getpwuid(stat_info.st_uid).pw_name
 
-		if None in (self.instancecache, self.sharedcache):
-			if self.wineprefix is None:
-				raise RuntimeError("wineprefix must be specified if cache and sharedcache paths are not specified")
-
+		if self.wineprefix:
 			# get the filesystem root for WINE
 			x = self.root.find(os.path.join(wineprefix, "drive_"))
 			if x == -1:
 				raise RuntimeError("specified wineprefix does not appear in EVE root path")
-
 			wineroot = self.root[:x+len(wineprefix)]  # all drive_ folders be here
-
+		
 		def _scan_folders(paths, pattern):
 			for path in paths:
 				for path in glob.iglob(_join(path, pattern)):
@@ -231,7 +227,13 @@ class _Paths(object):
 		# locate that cache folder. the names of the folders here
 		# depend on the locale of the Windows version used, so we
 		# cheat past that with a glob match.
-		if self.instancecache is None: 
+						
+		if self.sharedcache is None:
+			if self.wineprefix is None:
+				raise RuntimeError("wineprefix must be specified if sharedcache path is not specified")
+			self.sharedcache = _scan_folders((os.path.join(wineroot, "drive_c")), "*/CCP/EVE/SharedCache")
+			
+		if self.instancecache is None and self.wineprefix is not None:
 			candidates = (
 				os.path.join(wineroot, "drive_c/users", user),
 				os.path.join(wineroot, "drive_c/windows/profile", user),
@@ -239,9 +241,6 @@ class _Paths(object):
 			)
 			cachefoldername = _mangle_evepath(self.root[x+len(wineprefix)+7:], server_name)
 			self.instancecache = _scan_folders(candidates, "*/*/CCP/EVE/"+cacheFolderName)
-
-		if self.sharedcache is None:
-			self.sharedcache = _scan_folders((os.path.join(wineroot, "drive_c")), "*/CCP/EVE/SharedCache")
 
 
 

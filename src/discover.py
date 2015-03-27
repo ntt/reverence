@@ -218,23 +218,29 @@ class _Paths(object):
 					if exists(path):
 						return path
 
+
+		# figure out wineroot, but defer errors for when needed
+		error = None
+		if self.wineprefix:
+			# get the filesystem root for WINE
+			x = self.root.find(os.path.join(self.wineprefix, "drive_"))
+			if x > -1:
+				wineroot = self.root[:x+len(self.wineprefix)]  # all drive_ folders be here
+			else:
+				error = "wineprefix '%s' does not appear in EVE root path '%s'" % (self.wineprefix, self.root)
+		else:
+			error = "wineprefix must be specified if sharedcache path is not specified"
+
 		# locate that cache folder. the names of the folders here
 		# depend on the locale of the Windows version used, so we
 		# cheat past that with a glob match.
-						
+		
 		if self.sharedcache is None:
-			if self.wineprefix:
-				# get the filesystem root for WINE
-				x = self.root.find(os.path.join(self.wineprefix, "drive_"))
-				if x == -1:
-					raise RuntimeError("wineprefix '%s' does not appear in EVE root path '%s'" % (self.wineprefix, self.root))
-				wineroot = self.root[:x+len(self.wineprefix)]  # all drive_ folders be here
-			else:
-				raise RuntimeError("wineprefix must be specified if sharedcache path is not specified")
-								
+			if error:
+				raise RuntimeError(error)
 			self.sharedcache = _scan_folders((os.path.join(wineroot, "drive_c")), "*/CCP/EVE/SharedCache")
-			
-		if self.instancecache is None and self.wineprefix is not None:
+
+		if self.instancecache is None and error is not None:
 			candidates = (
 				os.path.join(wineroot, "drive_c/users", user),
 				os.path.join(wineroot, "drive_c/windows/profile", user),

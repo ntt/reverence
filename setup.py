@@ -46,7 +46,7 @@ setup(
 
 	url = "http://github.com/ntt/reverence",
 
-	version = "1.7.0",
+	version = "1.8.0",
 
 	install_requires = ['PyYAML'],
 
@@ -76,7 +76,6 @@ setup(
 			"src/blue/marshal.c",
 			"src/blue/dbrow.c",
 			"src/blue/adler32.c",
-			"src/blue/virtualfile.c",
 		]),
 
 		Extension("reverence._pyFSD", [

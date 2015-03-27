@@ -18,10 +18,7 @@ Used with permission from CCP.
 
 import os
 import cPickle
-
 import gc
-
-from . import embedfs
 
 debug = False
 
@@ -82,7 +79,7 @@ class NumericPropertyHandler(BasePropertyHandler):
 
 class Localization(object):
 
-	def __init__(self, root, languageID="en-us", cfgInstance=None):
+	def __init__(self, eve, languageID="en-us", cfgInstance=None):
 		self.cfg = cfgInstance or cfg
 
 		self._propertyHandlers = {}
@@ -90,40 +87,39 @@ class Localization(object):
 			if isinstance(cls, type) and issubclass(cls, BasePropertyHandler):
 				self._propertyHandlers[cls.__id__] = cls(self, cfgInstance)
 
-		stuff = embedfs.EmbedFS(os.path.join(root, "resLocalization.stuff"))
-		stuffFSD = embedfs.EmbedFS(os.path.join(root, "resLocalizationFSD.stuff"))
+		res = eve.ResFile()
 
-		def _loadlanguage(languageID, s1, s2):
-			x, data = cPickle.loads(s1.open("res/localization/localization_%s.pickle" % languageID).read())
-			data.update(cPickle.loads(s2.open("res/localizationFSD/localization_fsd_%s.pickle" % languageID).read())[1])
+		def _loadlanguage(languageID):
+			x, data = cPickle.loads(res.Open("res:/localization/localization_%s.pickle" % languageID).read())
+			data.update(cPickle.loads(res.Open("res:/localizationfsd/localization_fsd_%s.pickle" % languageID).read())[1])
 			return data
 
 		self.languageID = languageID
 
 		# load primary language
-		self.primary = _loadlanguage(languageID, stuff, stuffFSD)
+		self.primary = _loadlanguage(languageID)
 
 		# if the primary language isn't english, load the english pack as fallback
 		if languageID != "en-us":
-			self.fallback = _loadlanguage("en-us", stuff, stuffFSD)
+			self.fallback = _loadlanguage("en-us")
 		else:
 			self.fallback = None
 
 		self.languageLabels = {}
 
 		# load labels
-		for efs, resname in (
-			(stuff, "res/localization/localization_main.pickle"),
-			(stuffFSD, "res/localizationFSD/localization_fsd_main.pickle"),
+		for resname in (
+			"res:/localization/localization_main.pickle",
+			"res:/localizationfsd/localization_fsd_main.pickle",
 		):
-			unPickledObject = cPickle.loads(efs.open(resname).read())
+			unPickledObject = cPickle.loads(res.Open(resname).read())
 			for messageID, dataRow in unPickledObject['labels'].iteritems():
 				fp = dataRow['FullPath']
 				label = fp + '/' + dataRow['label'] if fp else dataRow['label']
 				self.languageLabels[label.encode('ascii')] = messageID
 
 		# clean up some stuff immediately (frees ~4MB)
-		del unPickledObject, stuff, stuffFSD
+		del unPickledObject
 		gc.collect()
 
 

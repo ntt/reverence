@@ -4,7 +4,7 @@
 - provides container classes for record and row data.
 - provides interface to the database tables
 
-Copyright (c) 2003-2013 Jamie "Entity" van den Berge <jamie@hlekkir.com>
+Copyright (c) 2003-2015 Jamie "Entity" van den Berge <jamie@hlekkir.com>
 
 This code is free software; you can redistribute it and/or modify
 it under the terms of the BSD license (see the file LICENSE.txt
@@ -294,7 +294,7 @@ class Config(object):
 
 	@_memoize
 	def blueprints(self):
-		return FSDLiteStorage(os.path.join(self.cache.root, "bin", "staticdata", "blueprints.db"))
+		return FSDLiteStorage(os.path.join(self.eve.paths.root, "bin", "staticdata", "blueprints.db"))
 
 
 	@_memoize
@@ -492,7 +492,7 @@ class Config(object):
 
 	@_memoize
 	def _localization(self):
-		return localization.Localization(self.cache.root, self._languageID, cfgInstance=self)
+		return localization.Localization(self._eve, self._languageID, cfgInstance=self)
 
 	@_memoize
 	def _averageMarketPrice(self):
@@ -500,11 +500,12 @@ class Config(object):
 
 	#--
 
-	def __init__(self, cache, languageID=None):
-		self.cache = cache
+	def __init__(self, eve):
+		self._eve = eve
+		self.cache = eve.cache
 		self.callback = None
-		protocol = self.protocol = self.cache.machoVersion
-		self._languageID = languageID
+		protocol = self.protocol = (eve.protocol or 99999)
+		self._languageID = eve.languageID
 
 		# Figure out the set of tables managed by this instance.
 		# Only tables that are available for this instance's particular
@@ -521,12 +522,12 @@ class Config(object):
 		))
 		self._attrCache = {}
 
-		self.localdb = sqlite3.connect(os.path.join(self.cache.root, "bin", "staticdata", "mapObjects.db"))
+		self.localdb = sqlite3.connect(os.path.join(eve.paths.root, "bin", "staticdata", "mapObjects.db"))
 		self.localdb.row_factory = sqlite3.Row
 
 
 		# DEPRECATED: look for fsd library in EVE install
-		ccplibpath = os.path.join(self.cache.root, "lib")
+		ccplibpath = os.path.join(eve.paths.root, "lib")
 
 		for fsdlib in glob.glob(os.path.join(ccplibpath, "fsdSchemas-*.zip")):
 			break
@@ -678,10 +679,10 @@ which will be called as func(current, total, tableName).
 			self._debug = True
 			start = time.clock()
 			print >>sys.stderr, "LOADING STATIC DATABASE"
-			print >>sys.stderr, "  machoCachePath:", self.cache.machocachepath
-			print >>sys.stderr, "  machoVersion:", self.cache.machoVersion
-			print >>sys.stderr, "  bulk system path:", self.cache.BULK_SYSTEM_PATH
-			print >>sys.stderr, "  bulk cache path:", self.cache.BULK_CACHE_PATH
+			print >>sys.stderr, "  machoCachePath:", self._eve.paths.machocache
+			print >>sys.stderr, "  machoVersion:", self._eve.paths.protocol
+			print >>sys.stderr, "  bulk system path:", self._eve.paths.bulkdata
+			print >>sys.stderr, "  bulk cache path:", self._eve.paths.bulkdata_updates
 		try:
 			if tables is None:
 				# preload everything.

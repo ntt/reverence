@@ -1,6 +1,6 @@
 """Main interface to all the goodies.
 
-Copyright (c) 2003-2012 Jamie "Entity" van den Berge <jamie@hlekkir.com>
+Copyright (c) 2003-2015 Jamie "Entity" van den Berge <jamie@hlekkir.com>
 
 This code is free software; you can redistribute it and/or modify
 it under the terms of the BSD license (see the file LICENSE.txt
@@ -12,8 +12,41 @@ import sys
 from time import sleep as _sleep
 
 from ._blue import marshal, DBRow, DBRowDescriptor
-from . import exceptions, cache, _os as os, _blue, pyFSD
+from . import exceptions
+from . import cache
+from . import _os as os
+from . import _blue
+from . import pyFSD
+from . import discover
+from . import rescache
+
 from reverence.carbon.common.lib.utillib import KeyVal
+
+
+_serveraliases = {
+	"tranquility": "87.237.38.200",
+	"singularity": "87.237.38.50",
+	"duality"    : "87.237.38.60",
+	"serenity"   : "211.144.214.68",
+}
+
+def _getserver(server):
+	if server.replace(".","").isdigit():
+		serverip = server or None
+	else:
+		serverip = _serveraliases.get(server.lower(), None)
+
+	if serverip is None:
+		raise ValueError("Invalid server name '%s'. Valid names are '%s' or an IP address." %\
+			(server, "', '".join((x.capitalize() for x in _serveraliases))))
+
+	if serverip == "87.237.38.200":
+		servername = "Tranquility"
+	elif serverip == "211.144.214.68":
+		servername = "211.144.214.68"	
+
+	return servername, serverip
+
 
 
 __all__ = ["EVE", "marshal", "os", "pyos", "DBRow", "DBRowDescriptor"]
@@ -54,21 +87,20 @@ class statistics(object):
 class _ResFile(object):
 	# read-only resource file handler.
 
-	def __init__(self, rot):
+	def __init__(self, rescache):
 		self.fh = None
-		self.rot = rot
+		self.rescache = rescache
 
 	def Open(self, filename):
 		self.Close()
 		try:
 			if filename.startswith("res:"):
-				# we gotta have to open a .stuff file...
 				try:
-					self.fh = self.rot.efs.open("res/" + filename[5:])
+					self.fh = self.rescache.open(filename)
 				except IndexError, e:
 					return None
-			elif filename.startswith("cache:"):
-				self.fh = open(os.path.join(self.eve.root, "cache", filename[7:]), "rb") 
+#			elif filename.startswith("cache:"):
+#				self.fh = open(os.path.join(self.eve.paths.root, "cache", filename[7:]), "rb") 
 			else:
 				self.fh = open(filename, "rb")
 		except IOError:
@@ -94,13 +126,6 @@ class _ResFile(object):
 
 	def seek(self, *args, **kw):
 		return self.fh.seek(*args, **kw)
-
-
-class _Rot(object):
-	def __init__(self, eve):
-		from . import embedfs
-		self.eve = eve
-		self.efs = embedfs.EmbedFSDirectory(eve.root)
 
 
 # offline RemoteSvc wrappers
@@ -134,28 +159,33 @@ class EVE(object):
 	provides the following methods:
 	getconfigmgr() - creates interface to bulkdata. see config.ConfigMgr.
 	getcachemgr() - creates interface to cache. see cache.CacheMgr.
-	readstuff(name) - reads the specified file from EVE's virtual file system.
+	readstuff(name) - reads the specified file from EVE's resource cache.
 	RemoteSvc(service) - creates offline RemoteSvc wrapper for given service.
 	"""
 
-	def __init__(self, root, server="Tranquility", machoVersion=-1, languageID="en-us", cachepath=None, wineprefix=".wine"):
-		self.root = root
+	def __init__(self, root, server="Tranquility", protocol=None, languageID="en-us", cachepath=None, sharedcachepath=None, wineprefix=".wine"):
 		self.server = server
-		self.rot = _Rot(self)
 		self.languageID = languageID
 
-		# default cache
-		self.cache = cache.CacheMgr(self.root, self.server, machoVersion, cachepath, wineprefix)
-		self.machoVersion = self.cache.machoVersion
+		self.server_name, self.server_ip = _getserver(server)
 
-		self.cfg = self.cache.getconfigmgr(languageID=self.languageID)
-		self.cfg._eve = self
+		self.paths = discover._Paths(root)
+		self.paths._set_known_paths(cache=cachepath, sharedcache=sharedcachepath, wineprefix=wineprefix)
+		self.protocol = self.paths._discover(self.server_name, self.server_ip, protocol)
+
+		# default cache
+		self.cache = cache.CacheMgr(self)
+
+		# shared resource cache
+		self.rescache = rescache.ResourceCache(self.paths.root, self.paths.sharedcache)
+
+		self.cfg = self.cache.getconfigmgr(self)
 
 		# hack to make blue.ResFile() work. This obviously means that
 		# when using multiple EVE versions, only the latest will be accessible
 		# in that manner.
 		global ResFile
-		ResFile = lambda: _ResFile(self.rot)
+		ResFile = lambda: _ResFile(self.rescache)
 
 	def RemoteSvc(self, service):
 		"""Creates a wrapper through which offline remote service methods can be called"""
@@ -164,7 +194,7 @@ class EVE(object):
 	# --- custom additions ---
 
 	def ResFile(self):
-		return _ResFile(self.rot)
+		return _ResFile(self.rescache)
 
 	def getcachemgr(self):
 		"""Return CacheMgr instance through which this EVE's cache can be manually accessed"""
@@ -176,7 +206,7 @@ class EVE(object):
 
 	def readstuff(self, name):
 		"""Reads specified file in the virtual filesystem"""
-		f = _ResFile(self.rot)
+		f = _ResFile()
 		f.Open(name)
 		return f.read()
 

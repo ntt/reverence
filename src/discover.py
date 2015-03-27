@@ -193,8 +193,11 @@ class _Paths(object):
 		if os.path.exists(actualroot):
 			self.root = actualroot
 
-		self.sharedcache = os.path.join(_programdata, "CCP", "EVE", "SharedCache")
-		self.instancecache = os.path.join(_localappdata, "CCP", "EVE", "c_program_files_ccp_eve_"+server_name.lower())
+		if self.sharedcache is None:
+			self.sharedcache = os.path.join(_programdata, "CCP", "EVE", "SharedCache")
+
+		if self.instancecache is None:
+			self.instancecache = os.path.join(_localappdata, "CCP", "EVE", "c_program_files_ccp_eve_"+server_name.lower())
 
 
 	def __discover_linux(self, sever_name):

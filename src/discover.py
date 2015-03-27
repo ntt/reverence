@@ -212,13 +212,6 @@ class _Paths(object):
 		stat_info = os.stat(self.root)
 		user = pwd.getpwuid(stat_info.st_uid).pw_name
 
-		if self.wineprefix:
-			# get the filesystem root for WINE
-			x = self.root.find(os.path.join(self.wineprefix, "drive_"))
-			if x == -1:
-				raise RuntimeError("specified wineprefix does not appear in EVE root path")
-			wineroot = self.root[:x+len(self.wineprefix)]  # all drive_ folders be here
-		
 		def _scan_folders(paths, pattern):
 			for path in paths:
 				for path in glob.iglob(os.path.join(path, pattern)):
@@ -230,8 +223,15 @@ class _Paths(object):
 		# cheat past that with a glob match.
 						
 		if self.sharedcache is None:
-			if self.wineprefix is None:
+			if self.wineprefix:
+				# get the filesystem root for WINE
+				x = self.root.find(os.path.join(self.wineprefix, "drive_"))
+				if x == -1:
+					raise RuntimeError("wineprefix '%s' does not appear in EVE root path '%s'" % (self.wineprefix, self.root))
+				wineroot = self.root[:x+len(self.wineprefix)]  # all drive_ folders be here
+			else:
 				raise RuntimeError("wineprefix must be specified if sharedcache path is not specified")
+								
 			self.sharedcache = _scan_folders((os.path.join(wineroot, "drive_c")), "*/CCP/EVE/SharedCache")
 			
 		if self.instancecache is None and self.wineprefix is not None:

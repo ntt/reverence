@@ -240,7 +240,7 @@ class _Paths(object):
 				raise RuntimeError(error)
 			self.sharedcache = _scan_folders((os.path.join(wineroot, "drive_c")), "*/CCP/EVE/SharedCache")
 
-		if self.instancecache is None and error is not None:
+		if self.instancecache is None and error is None:
 			candidates = (
 				os.path.join(wineroot, "drive_c/users", user),
 				os.path.join(wineroot, "drive_c/windows/profile", user),

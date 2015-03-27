@@ -34,10 +34,11 @@ def _mangle_evepath(path, server):
 def _get_protocol(machopath, bulkpath):
 	protocol = -1
 	for scandir in (machopath, bulkpath):
-		for dirName in glob.glob(os.path.join(scandir, "*")):
-			candidate = os.path.basename(dirName)
-			if candidate.isdigit():
-				protocol = max(protocol, int(candidate))
+		if scandir is not None:
+			for dirName in glob.glob(os.path.join(scandir, "*")):
+				candidate = os.path.basename(dirName)
+				if candidate.isdigit():
+					protocol = max(protocol, int(candidate))
 	if protocol > -1:
 		return protocol
 
@@ -63,16 +64,12 @@ class _Paths(object):
 		self.sharedcache = None
 
 		# per-install-per-server cache location
-		# - C:\Users\Entity\AppData\Local\CCP\EVE\g_eve_tranquility\cache
-		self.instancecache = None
+		# - C:\Users\Entity\AppData\Local\CCP\EVE\g_eve_tranquility
+		self.cache = None
 
-		# "settings" folder inside instancecache
+		# "settings" folder inside cache
 		# - C:\Users\Entity\AppData\Local\CCP\EVE\g_eve_tranquility\settings
 		self.settings = None
-
-		# "cache" folder inside instancecache
-		# - C:\Users\Entity\AppData\Local\CCP\EVE\g_eve_tranquility\cache
-		self.cache = None
 
 		# machonet folder for specified/discovered protocol version and server
 		# - C:\Users\Entity\AppData\Local\CCP\EVE\g_eve_tranquility\cache\MachoNet\87.237.38.200\409
@@ -107,7 +104,7 @@ class _Paths(object):
 		if self.cache is None:
 			_path = os.path.join(self.root, "cache")
 			if os.path.exists(_path):
-				self.instancecache = self.root
+				self.cache = self.root
 
 		if self.sharedcache is None:
 			_path = os.path.join(self.root, "SharedCache")
@@ -126,15 +123,15 @@ class _Paths(object):
 		self.bulkdata = os.path.join(self.root, 'bulkdata')
 
 
-		# instancecache is optional for Reverence, it does not require this
+		# cache is optional for Reverence, it does not require this
 		# path unless eve.RemoteSvc() calls are used or access to settings is
 		# needed.
-		if self.instancecache is not None:
-			self.cache = os.path.join(self.instancecache, 'cache')
-			self.settings = os.path.join(self.instancecache, 'settings')
+		if self.cache is not None:
+			self._cache = os.path.join(self.cache, 'cache')
+			self.settings = os.path.join(self.cache, 'settings')
 
-			_bulkdata_updates = os.path.join(self.instancecache, 'cache', 'bulkdata')
-			_machocache = os.path.join(self.cache, "MachoNet", server_ip)
+			_bulkdata_updates = os.path.join(self._cache, 'bulkdata')
+			_machocache = os.path.join(self._cache, 'MachoNet', server_ip)
 
 			# discover protocol version if not set
 			if protocol is None:
@@ -178,8 +175,8 @@ class _Paths(object):
 			if not (self.sharedcache and os.path.exists(self.sharedcache)):
 				raise RuntimeError("Unable to locate SharedCache folder")
 
-		if self.instancecache is None:
-			self.instancecache = os.path.join(_localappdata, "CCP", "EVE", _mangle_evepath(self.root, server_name))
+		if self.cache is None:
+			self.cache = os.path.join(_localappdata, "CCP", "EVE", _mangle_evepath(self.root, server_name))
 	
 
 	def __discover_mac(self, server_name):
@@ -197,8 +194,8 @@ class _Paths(object):
 		if self.sharedcache is None:
 			self.sharedcache = os.path.join(_programdata, "CCP", "EVE", "SharedCache")
 
-		if self.instancecache is None:
-			self.instancecache = os.path.join(_localappdata, "CCP", "EVE", "c_program_files_ccp_eve_"+server_name.lower())
+		if self.cache is None:
+			self.cache = os.path.join(_localappdata, "CCP", "EVE", "c_program_files_ccp_eve_"+server_name.lower())
 
 
 	def __discover_linux(self, server_name):
@@ -240,14 +237,14 @@ class _Paths(object):
 				raise RuntimeError(error)
 			self.sharedcache = _scan_folders((os.path.join(wineroot, "drive_c")), "*/CCP/EVE/SharedCache")
 
-		if self.instancecache is None and error is None:
+		if self.cache is None and error is None:
 			candidates = (
 				os.path.join(wineroot, "drive_c/users", user),
 				os.path.join(wineroot, "drive_c/windows/profile", user),
 				os.path.join(wineroot, "drive_c/windows/profiles", user),
 			)
 			cacheFolderName = _mangle_evepath(self.root[x+len(self.wineprefix)+7:], server_name)
-			self.instancecache = _scan_folders(candidates, "*/*/CCP/EVE/"+cacheFolderName)
+			self.cache = _scan_folders(candidates, "*/*/CCP/EVE/"+cacheFolderName)
 
 
 

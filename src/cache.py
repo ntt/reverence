@@ -64,8 +64,10 @@ class CacheMgr:
 		self.cfg = None
 		self._time_load = 0.0
 
+		self.machocache = eve.paths.machocache
+		
 		# search order for bulkdata
-		self.bulkdata_paths = [folder for folder in (self.eve.paths.bulkdata_updates, self.eve.paths.bulkdata) if folder is not None]
+		self.bulkdata_paths = [folder for folder in (eve.paths.bulkdata_updates, eve.paths.bulkdata) if folder is not None]
 
 
 	def GetCacheFileName(self, key):
@@ -86,7 +88,7 @@ class CacheMgr:
 
 
 	def _loadobject(self, key, canraise=False, folder=None):
-		name = _join(self.eve.paths.machocachepath, folder, self.GetCacheFileName(key))
+		name = _join(self.machocachepath, folder, self.GetCacheFileName(key))
 		if not canraise:
 			if not _exists(name):
 				return None
@@ -130,7 +132,7 @@ class CacheMgr:
 	def FindCacheFile(self, key):
 		"""Attempts to locate a cache file in any of the cache locations."""
 		fileName = self.GetCacheFileName(key)
-		_machocache = self.eve.paths.machocache
+		_machocache = self.machocache
 		for cacheName in [
 			_join(_machocache, "CachedObjects", fileName),
 			_join(_machocache, "CachedMethodCalls", fileName),
@@ -146,7 +148,7 @@ class CacheMgr:
 		fileName = self.GetCacheFileName(key)
 		obj = (key, None)
 		version = (0L, 0)
-		_machocache = self.eve.paths.machocache
+		_machocache = self.machocache
 		for cacheName in [
 			_join(_machocache, "CachedObjects", fileName),
 			_join(_machocache, "CachedMethodCalls", fileName),

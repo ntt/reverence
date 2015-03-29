@@ -229,7 +229,7 @@ Here's an example:
 >>> blue.set_user_agent("TestApplication/1.0")
 >>> eve = blue.EVE("X:\EVE", sharedcachepath="X:\EVEResFiles")
 
-After this it will it download any content required on attempting access it.
+It will then download any content required on attempting to access it.
 Please do make sure to provide a valid User-Agent for your application.
 
 

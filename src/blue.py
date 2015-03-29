@@ -22,6 +22,9 @@ from . import rescache
 
 from reverence.carbon.common.lib.utillib import KeyVal
 
+def set_user_agent(useragent):
+	rescache._useragent = useragent
+
 
 _serveraliases = {
 	"tranquility": "87.237.38.200",

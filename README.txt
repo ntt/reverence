@@ -27,6 +27,7 @@ FEATURES
 - EmbedFS (.stuff) file support.
 - Various EVE related utility functions and constants.
 - Supports localization.
+- Supports Download-on-Demand.
 
 
 REQUIREMENTS
@@ -193,7 +194,7 @@ for the key.
     ramtypematerials             typeID
 
 
-The library supports loading of data in .stuff files. There are a couple of
+The library supports loading of data in the SharedCache. There are a couple of
 ways of doing this. The following example shows the EVE method of loading
 the galaxy map hierarchy:
 
@@ -216,6 +217,20 @@ more friendly manner:
 
     >>> data = eve.readstuff("path goes here")
 
+
+Reverence can use CCP's Download on Demand servers to acquire files in the
+shared resource cache automatically if missing. To make use of this system,
+you must provide a valid User-Agent and set the shared cache folder to a
+specific location (Do not use EVE's SharedCache location in this case as it
+could interfere with your game client's normal operation).
+
+Here's an example:
+
+>>> blue.set_user_agent("TestApplication/1.0")
+>>> eve = blue.EVE("X:\EVE", sharedcachepath="X:\EVEResFiles")
+
+After this it will it download any content required on attempting access it.
+Please do make sure to provide a valid User-Agent for your application.
 
 
 ACKNOWLEDGEMENTS

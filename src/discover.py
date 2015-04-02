@@ -187,7 +187,7 @@ class _Paths(object):
 	def __discover_mac(self, server_name):
 		home = os.path.expanduser('~')
 		_localappdata = os.path.join(home, "Library/Application Support/EVE Online/p_drive/Local Settings/Application Data")
-		if not os.path.exists(path):
+		if not os.path.exists(_localappdata):
 			_localappdata = os.path.join(home, "Library/Preferences/EVE Online Preferences/p_drive/Local Settings/Application Data")
 
 		_programdata = _localappdata  # apparently....?!

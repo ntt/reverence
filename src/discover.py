@@ -114,8 +114,13 @@ class _Paths(object):
 		# do platform specific discovery
 		if os.name == "nt":
 			self.__discover_windows(server_name)
+
 		elif sys.platform == "darwin" or os.name == "mac":
-			self.__discover_mac(server_name)
+			if self.wineprefix is None:
+				self.__discover_mac(server_name)
+			else:
+				self.__discover_linux(server_name)
+
 		elif os.name in ("posix", "linux2"):
 			self.__discover_linux(server_name)
 
@@ -218,15 +223,16 @@ class _Paths(object):
 
 		# figure out wineroot, but defer errors for when needed
 		error = None
-		if self.wineprefix:
+		if self.wineprefix is None:
+			error = "wineprefix must be specified if sharedcache path is not specified"
+		else:
 			# get the filesystem root for WINE
 			x = self.root.find(os.path.join(self.wineprefix, "drive_"))
 			if x > -1:
 				wineroot = self.root[:x+len(self.wineprefix)]  # all drive_ folders be here
 			else:
 				error = "wineprefix '%s' does not appear in EVE root path '%s'" % (self.wineprefix, self.root)
-		else:
-			error = "wineprefix must be specified if sharedcache path is not specified"
+			
 
 		# locate that cache folder. the names of the folders here
 		# depend on the locale of the Windows version used, so we

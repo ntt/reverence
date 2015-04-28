@@ -45,8 +45,12 @@ def _getserver(server):
 
 	if serverip == "87.237.38.200":
 		servername = "Tranquility"
+	elif serverip == "87.237.38.50":
+		servername = "Singularity"
 	elif serverip == "211.144.214.68":
-		servername = "211.144.214.68"	
+		servername = "211.144.214.68"
+	else:
+		servername = serverip
 
 	return servername, serverip
 

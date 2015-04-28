@@ -88,7 +88,7 @@ class CacheMgr:
 
 
 	def _loadobject(self, key, canraise=False, folder=None):
-		name = _join(self.machocachepath, folder, self.GetCacheFileName(key))
+		name = _join(self.machocache, folder, self.GetCacheFileName(key))
 		if not canraise:
 			if not _exists(name):
 				return None

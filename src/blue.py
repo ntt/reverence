@@ -187,6 +187,7 @@ class EVE(object):
 		self.rescache = rescache.ResourceCache(self.paths.root, self.paths.sharedcache)
 
 		self.cfg = self.cache.getconfigmgr(self)
+		__builtin__.cfg = self.cfg
 
 		# hack to make blue.ResFile() work. This obviously means that
 		# when using multiple EVE versions, only the latest will be accessible

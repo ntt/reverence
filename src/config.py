@@ -46,15 +46,15 @@ _solarSystemObjectRowDescriptor = blue.DBRowDescriptor((
 
 
 class FSDLiteStorage(dict):
-	def __init__(self, path):
+	def __init__(self, path, rowclass=None):
 		dict.__init__(self)
+		self._rowclass = rowclass
 		self._db = db = sqlite3.connect(path)
 		db.row_factory = sqlite3.Row
 
 		loads = json.loads
-		for typeID, data in db.execute("SELECT key,value FROM cache"):
-			self[int(typeID)] = loads(data)
-
+		for primaryKey, data in db.execute("SELECT key,value FROM cache"):
+			self[int(primaryKey)] = loads(data)
 
 	def index(self, name, key, row=True):
 		for row in self._db.execute("SELECT * FROM indexes WHERE key = ?", ((name + "." + str(key)),) ):
@@ -63,6 +63,11 @@ class FSDLiteStorage(dict):
 			return int(row[1])
 		return None
 
+	def Get(self, key):
+		return self._rowclass(self[key])
+
+	def __iter__(self):
+		return (self._rowclass(x) for x in self.itervalues())
 
 # Warning: Code below may accidentally your whole brain.
 
@@ -103,6 +108,11 @@ def _loader(attrName):
 			ver, rem, (staticName, schemaName, optimize), cacheNum = entry
 			return self._loadfsddata(staticName, schemaName, cacheNum, optimize=optimize)
 
+		if len(entry) == 3:
+			# FSDLite loader
+			ver, rem, (dbfilename, rowClass) = entry
+			return FSDLiteStorage(os.path.join(self.eve.paths.root, "bin", "staticdata", dbfilename), rowClass)
+			
 	method.func_name = attrName
 	return method
 
@@ -205,9 +215,11 @@ class Config(object):
 	__tables__ = (
 
 #		( cfg attrib                  , (ver, del, storage class       , row class         , primary key           bulkID)),
-		("invcategories"              , (  0,   0, IndexRowset         , InvCategory       , "categoryID"        , const.cacheInvCategories)),
-		("invgroups"                  , (  0,   0, IndexRowset         , InvGroup          , "groupID"           , const.cacheInvGroups)),
-		("invtypes"                   , (  0,   0, IndexRowset         , InvType           , "typeID"            , const.cacheInvTypes)),
+#		("invcategories"              , (  0,   0, IndexRowset         , InvCategory       , "categoryID"        , const.cacheInvCategories)),
+#		("invgroups"                  , (  0,   0, IndexRowset         , InvGroup          , "groupID"           , const.cacheInvGroups)),
+#		("invtypes"                   , (  0,   0, IndexRowset         , InvType           , "typeID"            , const.cacheInvTypes)),
+
+
 		("invmetagroups"              , (  0,   0, IndexRowset         , InvMetaGroup      , "metaGroupID"       , const.cacheInvMetaGroups)),
 		("invbptypes"                 , (  0, 405, IndexRowset         , Row               , "blueprintTypeID"   , const.cacheInvBlueprintTypes)),
 		("invreactiontypes"           , (  0,   0, FilterRowset        , Row               , "reactionTypeID"    , const.cacheInvTypeReactions)),
@@ -286,16 +298,19 @@ class Config(object):
 		("mapCelestialLocationCache"  , (393,   0, ("locationCache"   , None              , None )   , None)),
 
 		("mapSolarSystemContentCache" , (393,   0, ("solarSystemContent", None            , None )   , None)),
+
+		
+		# FSDLite stuff ----------------(ver, del, (dbname            ,  rowclass))
+		("invcategories"              , (412,   0, ("evecategories.db", InvCategory))),
+		("invgroups"                  , (412,   0, ("evegroups.db"    , InvGroup))),
+		("invtypes"                   , (412,   0, ("evetypes.db"     , InvType))),
 	)
 
 
 	# Custom table loader methods follow
-
-
 	@_memoize
 	def blueprints(self):
 		return FSDLiteStorage(os.path.join(self.eve.paths.root, "bin", "staticdata", "blueprints.db"))
-
 
 	@_memoize
 	def eveowners(self):

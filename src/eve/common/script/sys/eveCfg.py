@@ -14,12 +14,10 @@ from reverence.carbon.common.script.sys.row import Row
 _get = Row.__getattr__
 
 def _localized(row, attr, messageID):
-	_cfg = (row.cfg or cfg)
-	return _cfg._localization.GetByMessageID(messageID)
+	return cfg._localization.GetByMessageID(messageID)
 
 def _localized_important(row, attr, messageID):
-	_cfg = (row.cfg or cfg)
-	return _cfg._localization.GetImportantByMessageID(messageID)
+	return cfg._localization.GetImportantByMessageID(messageID)
 
 
 _OWNER_AURA_IDENTIFIER = -1
@@ -68,62 +66,66 @@ class Billtype(Row):
 		return 'Billtype ID: %d' % self.billTypeID
 
 
-class InvType(Row):
+class InvType(object):
 	__guid__ = "sys.InvType"
 
+	def __init__(self, d):
+		self.__dict__ = d
+	
 	def __getattr__(self, attr):
 		if attr in ("name", "typeName"):
 			return _localized_important(self, "typeName", self.typeNameID)
 		if attr == 'categoryID':
-			return (self.cfg or cfg).invgroups.Get(self.groupID).categoryID
+			return cfg.invgroups.Get(self.groupID).categoryID
 		if attr == "description":
 			return _localized(self, "description", self.descriptionID)
 
 		# check overrides
 		if attr in ('graphicID', 'soundID', 'iconID', 'radius'):
 			try:
-				fsd = (self.cfg or cfg).fsdTypeOverrides
+				fsd = cfg.fsdTypeOverrides
 				return getattr(fsd.Get(self.typeID), attr)
 			except (AttributeError, KeyError):
 				pass
 
-		return _get(self, attr)
+		#return _get(self, attr)
+		return self.__dict__[attr]
 
 	def Group(self):
-		return (self.cfg or cfg).invgroups.Get(self.groupID)
+		return cfg.invgroups.Get(self.groupID)
 
 	def GetRawName(self, languageID):
-		return (self.cfg or cfg)._localization.GetByMessageID(self.typeNameID, languageID)
+		return cfg._localization.GetByMessageID(self.typeNameID, languageID)
 
 	def Icon(self):
 		if self.typeID >= const.minDustTypeID:
-			return (self.cfg or cfg).fsdDustIcons.get(self.typeID, None)
+			return cfg.fsdDustIcons.get(self.typeID, None)
 		elif self.iconID is not None:
-			return (self.cfg or cfg).icons.GetIfExists(self.iconID)
+			return cfg.icons.GetIfExists(self.iconID)
 		return
 
 	def IconFile(self):
-		return getattr((self.cfg or cfg).icons.Get(self.iconID), "iconFile", "")
+		return getattr(cfg.icons.Get(self.iconID), "iconFile", "")
 
 	def Graphic(self):
 		gid = self.graphicID
 		if gid is not None:
-			return (self.cfg or cfg).graphics.Get(gid)
+			return cfg.graphics.Get(gid)
 		return None
 
 	def GraphicFile(self):
-		return getattr((self.cfg or cfg).Graphic(), "graphicFile", "")
+		return getattr(cfg.Graphic(), "graphicFile", "")
 
 	def Sound(self):
 		sid = self.soundID
 		if sid is not None:
-			print (self.cfg or cfg).sounds.keys()
-			return (self.cfg or cfg).sounds.GetIfExists(sid)
+			print cfg.sounds.keys()
+			return cfg.sounds.GetIfExists(sid)
 
 	@property
 	def averagePrice(self):
 		try:
-			return (self.cfg or cfg)._averageMarketPrice[self.typeID].averagePrice
+			return cfg._averageMarketPrice[self.typeID].averagePrice
 		except KeyError:
 			return None
 
@@ -131,44 +133,52 @@ class InvType(Row):
 
 	@property
 	def packagedvolume(self):
-		return (self.cfg or cfg).GetTypeVolume(self.typeID)
+		return cfg.GetTypeVolume(self.typeID)
 
 	def GetRequiredSkills(self):
-		return (self.cfg or cfg).GetRequiredSkills(self.typeID)
+		return cfg.GetRequiredSkills(self.typeID)
 
 	def GetTypeAttrDict(self):
-		return (self.cfg or cfg).GetTypeAttrDict(self.typeID)
+		return cfg.GetTypeAttrDict(self.typeID)
 
 	def GetTypeAttribute(self, attributeID, defaultValue=None):
-		return (self.cfg or cfg).GetTypeAttribute(self.typeID, attributeID, defaultValue)
+		return cfg.GetTypeAttribute(self.typeID, attributeID, defaultValue)
 
 	def GetTypeAttribute2(self, attributeID):
-		return (self.cfg or cfg).GetTypeAttribute2(self.typeID, attributeID)
+		return cfg.GetTypeAttribute2(self.typeID, attributeID)
 
 
-class InvGroup(Row):
+class InvGroup(object):
 	__guid__ = "sys.InvGroup"
+	
+	def __init__(self, d):
+		self.__dict__ = d
 
 	def Category(self):
-		return (self.cfg or cfg).invcategories.Get(self.categoryID)
+		return cfg.invcategories.Get(self.categoryID)
 
 	def __getattr__(self, attr):
 		if attr in ("name", "groupName", "description"):
 			return _localized(self, "groupName", self.groupNameID)
 		if attr == "id":
 			return _get(self, "groupID")
-		return _get(self, attr)
+		#return _get(self, attr)
+		return self[attr]
 
 
-class InvCategory(Row):
+class InvCategory(object):
 	__guid__ = "sys.InvCategory"
 
+	def __init__(self, d):
+		self.__dict__ = d
+	
 	def __getattr__(self, attr):
 		if attr in ("name", "categoryName", "description"):
 			return _localized(self, "categoryName", self.categoryNameID)
 		if attr == "id":
 			return _get(self, "categoryID")
-		return _get(self, attr)
+		#return _get(self, attr)
+		return self[attr]
 
 	def IsHardware(self):
 		return self.categoryID == const.categoryModule
@@ -225,24 +235,24 @@ class EveOwners(Row):
 		if name in ("name", "description", "ownerName"):
 			return _get(self, "ownerName")
 		if name == "groupID":
-			return self.cfg.invtypes.Get(self.typeID).groupID
+			return cfg.invtypes.Get(self.typeID).groupID
 		return _get(self, name)
 
 	def GetRawName(self, languageID):
 		if self.ownerNameID:
 			if self.ownerNameID in _OWNER_NAME_OVERRIDES:
-				return (self.cfg or cfg)._localization.GetByLabel(_OWNER_NAME_OVERRIDES[self.ownerNameID], languageID)
-			return (self.cfg or cfg)._localization.GetByMessageID(self.ownerNameID, languageID)
+				return cfg._localization.GetByLabel(_OWNER_NAME_OVERRIDES[self.ownerNameID], languageID)
+			return cfg._localization.GetByMessageID(self.ownerNameID, languageID)
 		return self.name
 
 	def __str__(self):
 		return 'EveOwner ID: %d, "%s"' % (self.ownerID, self.ownerName)
 
 	def Type(self):
-		return self.cfg.invtypes.Get(self.typeID)
+		return cfg.invtypes.Get(self.typeID)
 
 	def Group(self):
-		return self.cfg.invgroups.Get(self.groupID)
+		return cfg.invgroups.Get(self.groupID)
 
 
 class EveLocations(Row):
@@ -251,7 +261,7 @@ class EveLocations(Row):
 	def __getattr__(self, name):
 		if name in ("name", "description", "locationName"):
 			locationName = _get(self, 'locationName')
-			_cfg = (self.cfg or cfg)
+			_cfg = cfg
 			if (not locationName) and self.locationNameID is not None:
 				if isinstance(self.locationNameID, (int, long)):
 					locationName = _cfg._localization.GetByMessageID(self.locationNameID)
@@ -267,14 +277,14 @@ class EveLocations(Row):
 
 	def GetRawName(self, languageID):
 		if self.locationNameID:
-			return (self.cfg or cfg)._localization.GetByMessageID(self.locationNameID, languageID)
+			return cfg._localization.GetByMessageID(self.locationNameID, languageID)
 #		if self.locationID in cfg.rawCelestialCache:
 #			(lbl, kwargs,) = cfg.rawCelestialCache[self.locationID]
-#			return self.cfg._localization.GetByLabel(lbl, languageID, **kwargs)
+#			return cfg._localization.GetByLabel(lbl, languageID, **kwargs)
 		return self.locationName
 
 #	def Station(self):
-#		return self.cfg.GetSvc("stationSvc").GetStation(self.id)
+#		return cfg.GetSvc("stationSvc").GetStation(self.id)
 
 
 class RamCompletedStatus(Row):
@@ -318,7 +328,7 @@ class RamDetail(Row):
 
 	def __getattr__(self, name):
    		if name == "activityID":
-			return (self.cfg or cfg).ramaltypes.Get(self.assemblyLineTypeID).activityID
+			return cfg.ramaltypes.Get(self.assemblyLineTypeID).activityID
    		return _get(self, name)
 
 

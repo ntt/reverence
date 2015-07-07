@@ -19,6 +19,7 @@ def _SHGetFolderPath(folderID):
 	if result:
 		if result < 0:
 			result += 0x100000000
+		print path_buf.value
 		raise RuntimeError("SHGetFolderPath failed, error code 0x%08x" % result)
 	return path_buf.value
 

@@ -125,6 +125,12 @@ class _ResFile(object):
 
 	# ---- custom additions ----
 
+	def resolvepath(self, filename):
+		if filename.startswith("res:"):
+			return self.rescache.prime(filename)
+		else:
+			return filename
+	
 	def read(self, *args):
 		return self.fh.read(*args)
 

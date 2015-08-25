@@ -36,24 +36,22 @@ class ResourceCache(object):
 
 
 	def open(self, name):
+		return open(self.prime(name), mode='rb')
+
+
+	def prime(self, name, download=True):
 		try:
 			_, resPath, file_hash, file_size, compressed_size = self._index[name.lower()]
 		except KeyError:
 			raise IndexError("File not in resfileindex: '%s'" % name)
 
 		fullPath = os.path.join(self._sharedCachePath, 'ResFiles', resPath)
-
-		if _useragent is None:
-			return open(fullPath, mode='rb')
-		else:
-			try:
-				return open(fullPath, mode='rb')
-			except IOError:
-				# file not present. download it.
-				if not os.path.exists(fullPath):
-					self._download(resPath, fullPath, file_hash, file_size, compressed_size)
-					return open(fullPath, mode='rb')
-
+			
+		if _useragent and download and not os.path.exists(fullPath):
+			self._download(resPath, fullPath, file_hash, file_size, compressed_size)
+			
+		return fullPath
+					
 
 	@_memoize
 	def _index(self):

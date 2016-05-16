@@ -43,7 +43,7 @@ def _getserver(server):
 		raise ValueError("Invalid server name '%s'. Valid names are '%s' or an IP address." %\
 			(server, "', '".join((x.capitalize() for x in _serveraliases))))
 
-	if serverip == "87.237.38.200":
+	if serverip == "87.237.34.200":
 		servername = "Tranquility"
 	elif serverip == "87.237.38.50":
 		servername = "Singularity"

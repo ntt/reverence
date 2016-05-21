@@ -28,7 +28,7 @@ def set_user_agent(useragent):
 
 _serveraliases = {
 	"tranquility": "87.237.34.200",
-	"singularity": "87.237.38.50",
+	"singularity": "87.237.33.2",
 	"duality"    : "87.237.38.60",
 	"serenity"   : "211.144.214.68",
 }
@@ -45,7 +45,7 @@ def _getserver(server):
 
 	if serverip == "87.237.34.200":
 		servername = "Tranquility"
-	elif serverip == "87.237.38.50":
+	elif serverip == "87.237.33.2":
 		servername = "Singularity"
 	elif serverip == "211.144.214.68":
 		servername = "211.144.214.68"
